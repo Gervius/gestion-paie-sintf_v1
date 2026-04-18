@@ -1,0 +1,50 @@
+<svg width="500" height="360" viewBox="0 0 500 360" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Soleil -->
+  <g stroke="#F28C28" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M170 120 A80 80 0 0 1 330 120"></path>
+    <path d="M170 120 
+             Q190 140 210 120 
+             Q230 140 250 120 
+             Q270 140 290 120 
+             Q310 135 330 120"></path>
+    
+    <line x1="250" y1="45" x2="250" y2="85"></line>
+    <line x1="210" y1="55" x2="225" y2="90"></line>
+    <line x1="290" y1="55" x2="275" y2="90"></line>
+    <line x1="160" y1="95" x2="200" y2="115"></line>
+    <line x1="340" y1="95" x2="300" y2="115"></line>
+  </g>
+
+  <!-- SINTF -->
+  <text x="90" y="200" font-family="Verdana, Arial, sans-serif" font-size="85" fill="#1C6B3A" font-weight="700" letter-spacing="2">
+    SINTF
+  </text>
+
+  <!-- Ligne -->
+  <rect x="90" y="210" width="280" height="8" fill="#1C6B3A"></rect>
+
+  <!-- Sarl -->
+  <text x="380" y="200" font-family="Brush Script MT, cursive" font-size="45" fill="#3FA34D">
+    Sarl
+  </text>
+
+  <!-- Slogan -->
+  <text x="70" y="250" font-family="Arial, sans-serif" font-size="18" fill="#F28C28" letter-spacing="1.5">
+    Transformation des Fruits &amp; Légumes
+  </text>
+
+  <!-- Feuilles -->
+  <g fill="#3FA34D">
+    <!-- gauche -->
+    <path d="M160 300 Q170 280 185 300 Q170 295 160 300"></path>
+    <path d="M185 300 Q195 280 210 300 Q195 295 185 300"></path>
+    <path d="M210 300 Q220 280 235 300 Q220 295 210 300"></path>
+
+    <!-- droite -->
+    <path d="M265 300 Q275 280 290 300 Q275 295 265 300"></path>
+    <path d="M290 300 Q300 280 315 300 Q300 295 290 300"></path>
+    <path d="M315 300 Q325 280 340 300 Q325 295 315 300"></path>
+  </g>
+
+</svg>

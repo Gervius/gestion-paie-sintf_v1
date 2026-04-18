@@ -1,0 +1,40 @@
+import { usePage, useForm, Link } from '@inertiajs/react';
+import { rolesUpdate, rolesIndex } from '@/routes';
+import SettingsLayout from '@/layouts/settings/layout';
+
+export default function Edit() {
+    const { role, permissions } = usePage<{ role: { id: number; name: string; permissions: { name: string }[] }; permissions: { name: string }[]; }>().props;
+    const { data, setData, put, processing, errors } = useForm({ name: role.name, permissions: role.permissions.map(p => p.name) });
+
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); put(rolesUpdate.url({ role: role.id })); };
+
+    return (
+        <SettingsLayout>
+            <div className="max-w-3xl mx-auto p-6 space-y-6">
+                <h1 className="text-2xl font-bold text-gray-900">Modifier le Rôle : {role.name}</h1>
+                <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border border-border shadow-sm space-y-6">
+                    <div>
+                        <label className="block text-sm font-bold text-primary mb-2">Nom du rôle *</label>
+                        <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-secondary outline-none disabled:bg-gray-100 disabled:text-gray-500" required disabled={role.name === 'Super Admin'} />
+                        {errors.name && <p className="mt-1 text-sm text-destructive">{errors.name}</p>}
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-primary mb-2">Accès & Permissions</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto border border-border p-4 rounded-xl bg-muted/20">
+                            {permissions.map(perm => (
+                                <label key={perm.name} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition">
+                                    <input type="checkbox" value={perm.name} checked={data.permissions.includes(perm.name)} onChange={(e) => setData('permissions', e.target.checked ? [...data.permissions, e.target.value] : data.permissions.filter(p => p !== e.target.value))} className="w-4 h-4 text-primary" />
+                                    <span className="text-sm font-medium text-gray-700">{perm.name.replace(/_/g, ' ')}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-6 border-t">
+                        <Link href={rolesIndex.url()} className="px-6 py-2.5 border rounded-lg hover:bg-gray-50 font-medium">Annuler</Link>
+                        <button type="submit" disabled={processing} className="px-6 py-2.5 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 disabled:opacity-50">{processing ? 'Mise à jour...' : 'Mettre à jour le rôle'}</button>
+                    </div>
+                </form>
+            </div>
+        </SettingsLayout>
+    );
+}
