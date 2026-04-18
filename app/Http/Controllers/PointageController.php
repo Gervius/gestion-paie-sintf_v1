@@ -140,8 +140,8 @@ class PointageController extends Controller
         $this->authorize('submitQuantities', $pointage);
         try {
             $action->execute($pointage, $request->input('quantities'));
-            // ✅ Retour Inertia natif
-            return back()->with('success', 'Feuille de pointage clôturée avec succès.'); 
+            
+            return redirect()->route('pointageIndex')->with('success', 'Feuille de pointage clôturée avec succès.'); 
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }

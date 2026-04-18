@@ -2,8 +2,16 @@ import { usePage, router, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import { FileText, Search, RotateCcw, X, CheckCircle2, ArrowLeft, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-// Assure-toi que apiPointageValiderPreparation est bien importé ou appelé via son URL
-import { apiPointageAgentsAdd, apiPointageAgentsRemove, apiPointagePdf, apiPersonnelSearch, apiPointageReset, apiPointageSubmit } from '@/routes';
+// ✅ Importation propre et centralisée de TOUTES les routes
+import { 
+    apiPointageAgentsAdd, 
+    apiPointageAgentsRemove, 
+    apiPointagePdf, 
+    apiPersonnelSearch, 
+    apiPointageReset, 
+    apiPointageSubmit,
+    apiPointageValiderPreparation // Ajout de la nouvelle route
+} from '@/routes';
 
 export default function Show() {
     const { pointage, canEdit, canSubmit, taux, flash } = usePage<any>().props;
@@ -32,21 +40,34 @@ export default function Show() {
         router.post(apiPointageReset.url({ pointage: pointage.id }), {}, { preserveScroll: true });
     };
 
-    // NOUVEAU : Fonction pour passer à la saisie
+    // ✅ Utilisation du helper de route généré
     const handleOuvrirSaisie = () => {
         if (!confirm('Êtes-vous sûr de vouloir figer cette liste d\'agents et ouvrir la saisie des quantités ?')) return;
-        router.post(`/api/pointages/${pointage.id}/valider-preparation`, {}, { preserveScroll: true });
+        router.post(apiPointageValiderPreparation.url({ pointage: pointage.id }), {}, { preserveScroll: true });
     };
 
+    // ✅ Utilisation du helper avec gestion des erreurs 422/403
     const handleSubmitAll = () => {
         if (!confirm('Clôturer définitivement cette feuille ? Les montants seront figés et prêts pour la paie.')) return;
-        const quantities = Object.entries(localQuantities).map(([id, q]) => ({ ligne_id: parseInt(id), quantite: Number(q) }));
-        router.post(apiPointageSubmit.url({ pointage: pointage.id }), { quantities });
+        
+        const quantities = Object.entries(localQuantities).map(([id, q]) => ({ 
+            ligne_id: parseInt(id), 
+            quantite: Number(q) 
+        }));
+
+        router.post(apiPointageSubmit.url({ pointage: pointage.id }), { quantities }, {
+            preserveScroll: true,
+            onError: (errors) => {
+                console.error("Erreurs serveur :", errors);
+                alert(errors.error || "Erreur lors de la validation. Vérifiez les quantités ou vos permissions.");
+            }
+        });
     };
 
     const handleSearch = async (q: string) => {
         setSearchTerm(q);
         if (q.length < 2) return setSearchResults([]);
+        // apiPersonnelSearch reste propre
         const res = await fetch(`${apiPersonnelSearch.url()}?q=${encodeURIComponent(q)}`);
         setSearchResults(await res.json());
     };
@@ -82,7 +103,6 @@ export default function Show() {
                 </div>
             </div>
 
-            {/* BARRE D'OUTILS - MODE PRÉPARATION */}
             {pointage.statut === 'PREPARATION' && canEdit && (
                 <div className="flex flex-wrap gap-4 items-center bg-primary/5 p-4 rounded-xl border border-primary/20">
                     <div className="relative flex-1 max-w-md">
@@ -147,7 +167,6 @@ export default function Show() {
                                         </span>
                                     </td>
                                     
-                                    {/* COLONNE QUANTITÉ : EXPLICITE ET INTUITIVE */}
                                     <td className="px-6 py-4 text-center">
                                         {pointage.statut === 'PREPARATION' ? (
                                             <div className="flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-300 rounded p-2 text-gray-400">
@@ -198,7 +217,6 @@ export default function Show() {
                 </table>
             </div>
 
-            {/* NOUVEAU BOUTON : PASSER À LA SAISIE */}
             {pointage.statut === 'PREPARATION' && canEdit && pointage.lignes.length > 0 && (
                 <div className="flex justify-end pt-4">
                     <Button onClick={handleOuvrirSaisie} className="bg-orange-500 hover:bg-orange-600 text-white font-bold h-14 px-8 rounded-xl shadow-lg transition-all animate-in slide-in-from-bottom-4">
@@ -207,7 +225,6 @@ export default function Show() {
                 </div>
             )}
 
-            {/* BOUTON CLÔTURE */}
             {pointage.statut === 'EDITE_TERRAIN' && canSubmit && (
                 <div className="flex justify-end pt-4">
                     <Button onClick={handleSubmitAll} className="bg-green-600 hover:bg-green-700 text-white font-bold h-14 px-8 rounded-xl shadow-lg transition-all">

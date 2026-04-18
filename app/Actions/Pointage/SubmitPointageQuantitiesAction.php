@@ -8,54 +8,29 @@ use Illuminate\Support\Facades\DB;
 
 class SubmitPointageQuantitiesAction
 {
-    public function execute(Pointage $pointage, array $quantities): void
+    public function execute(Pointage $pointage, array $quantities)
     {
-        if ($pointage->statut !== 'EDITE_TERRAIN') {
-            throw new \Exception('La feuille doit être en édition terrain pour recevoir les quantités.');
-        }
-
+        // On sécurise l'opération pour que tout passe ou tout échoue en même temps
         DB::transaction(function () use ($pointage, $quantities) {
+            
             $taux = $pointage->taux_applique;
-            $ligneIds = array_column($quantities, 'ligne_id');
 
-            $lignes = PointageLigne::where('pointage_id', $pointage->id)
-                ->whereIn('id', $ligneIds)
-                ->get()
-                ->keyBy('id');
-
-            $lignesAvecQuantite = [];
-
+            // 1. Mise à jour de chaque ligne existante
             foreach ($quantities as $item) {
-                $ligneId = $item['ligne_id'];
-                $quantite = max(0, (float) $item['quantite']);
-
-                if (!isset($lignes[$ligneId])) continue;
-
-                $ligne = $lignes[$ligneId];
-
-                if ($quantite > 0) {
-                    $ligne->quantite = $quantite;
-                    $ligne->montant_brut = $quantite * $taux;
-                    $ligne->statut_ligne = 'EN_ATTENTE';
-                    $lignesAvecQuantite[] = $ligneId;
-                }
+                PointageLigne::where('id', $item['ligne_id'])
+                    ->where('pointage_id', $pointage->id) // Sécurité : on s'assure que la ligne appartient bien à ce pointage
+                    ->update([
+                        'quantite'     => $item['quantite'],
+                        'montant_brut' => $item['quantite'] * $taux,
+                        'statut_ligne' => 'EN_ATTENTE' // Ou 'VALIDE' selon tes règles métier
+                    ]);
             }
 
-            if (!empty($lignesAvecQuantite)) {
-                PointageLigne::upsert(
-                    $lignes->only($lignesAvecQuantite)->map->only([
-                        'id', 'quantite', 'montant_brut', 'statut_ligne'
-                    ])->toArray(),
-                    ['id'],
-                    ['quantite', 'montant_brut', 'statut_ligne']
-                );
-            }
-
-            PointageLigne::where('pointage_id', $pointage->id)
-                ->whereNotIn('id', $lignesAvecQuantite)
-                ->delete();
-
-            $pointage->update(['statut' => 'CLOTURE']);
+            // 2. Clôture définitive de la feuille de pointage
+            $pointage->update([
+                'statut' => 'CLOTURE'
+            ]);
+            
         });
     }
 }
