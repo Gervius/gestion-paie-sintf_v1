@@ -34,7 +34,7 @@ class PermissionController extends Controller
 
         Permission::create(['name' => $request->name]);
 
-        return redirect()->route('permissions.index')
+        return redirect()->route('permissionsIndex')
             ->with('success', 'Permission créée.');
     }
 

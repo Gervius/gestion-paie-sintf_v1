@@ -3,51 +3,30 @@
 namespace App\Services\Finance;
 
 use App\Models\TicketPaiement;
-use App\Models\EtatPaiement;
 use App\Models\Avance;
 use Illuminate\Support\Facades\DB;
 
 class PaiementEspecesService
 {
-    /**
-     * Paiement de masse : Paie tous les tickets espèces d'un état validé
-     */
-    public function payerEtatComplet(EtatPaiement $etat): int
-    {
-        if ($etat->statut !== 'VALIDE') {
-            throw new \Exception("Impossible de payer un état non validé.");
-        }
-
-        $tickets = $etat->tickets()->where('mode_paiement', 'ESPECES')->where('statut', 'NON_SOLDE')->get();
-        $count = 0;
-
-        DB::transaction(function () use ($tickets, &$count) {
-            foreach ($tickets as $ticket) {
-                $this->payerTicket($ticket);
-                $count++;
-            }
-        });
-
-        return $count; // Retourne le nombre de tickets payés
-    }
-
-    /**
-     * Paiement individuel avec déduction stricte de l'entente
-     */
-    public function payerTicket(TicketPaiement $ticket): void
+    public function payer(TicketPaiement $ticket): void
     {
         DB::transaction(function () use ($ticket) {
             if ($ticket->statut !== 'NON_SOLDE') {
-                throw new \Exception('Ce ticket est déjà soldé.');
+                throw new \Exception('Ce ticket ne peut pas être payé.');
+            }
+            if ($ticket->etatPaiement->statut !== 'VALIDE') {
+                throw new \Exception('L\'état de paiement associé n\'est pas encore validé.');
             }
 
+            // 1. On solde le ticket
             $ticket->update(['statut' => 'SOLDE']);
             $ticket->pointageLignes()->update(['statut_ligne' => 'PAYE']);
 
-            // Déduction de l'avance basée SUR LA SAISIE DU CAISSIER (montant_deduit_manuel)
-            $montantARetenir = $ticket->montant_deduit_manuel;
+            // 2. LOGIQUE MANUELLE : On récupère le montant décidé par le caissier
+            $retenueAAppliquer = $ticket->montant_deduit_manuel;
 
-            if ($montantARetenir > 0) {
+            if ($retenueAAppliquer > 0) {
+                // On récupère les avances actives de l'employé
                 $avances = Avance::where('personnel_id', $ticket->personnel_id)
                     ->where('statut', 'ACTIVE')
                     ->where('solde_restant', '>', 0)
@@ -55,17 +34,37 @@ class PaiementEspecesService
                     ->get();
 
                 foreach ($avances as $avance) {
-                    if ($montantARetenir <= 0) break;
+                    if ($retenueAAppliquer <= 0) break;
+
+                    // On déduit soit la totalité de la retenue, soit ce qu'il reste sur cette avance
+                    $deduction = min($avance->solde_restant, $retenueAAppliquer);
                     
-                    $deduction = min($avance->solde_restant, $montantARetenir);
                     $avance->decrement('solde_restant', $deduction);
-                    $montantARetenir -= $deduction;
-                    
-                    if ($avance->solde_restant == 0) {
+                    $retenueAAppliquer -= $deduction;
+
+                    if ($avance->solde_restant <= 0) {
                         $avance->update(['statut' => 'SOLDEE']);
                     }
                 }
             }
         });
+    }
+
+    /**
+     * Paiement de masse pour l'état complet
+     */
+    public function payerEtatComplet($etatId): int
+    {
+        $tickets = TicketPaiement::where('etat_paiement_id', $etatId)
+            ->where('mode_paiement', 'ESPECES')
+            ->where('statut', 'NON_SOLDE')
+            ->get();
+
+        $count = 0;
+        foreach ($tickets as $ticket) {
+            $this->payer($ticket);
+            $count++;
+        }
+        return $count;
     }
 }

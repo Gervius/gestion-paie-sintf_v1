@@ -12,7 +12,7 @@ class SiteController extends Controller
     {
         $this->authorize('viewAny', Site::class);
 
-        return Inertia::render('Referentiels/Sites/Index', [ // ✅ Correction du chemin
+        return Inertia::render('Referentiels/Sites/Index', [
             'sites' => Site::orderBy('nom_site')->paginate(20),
         ]);
     }
@@ -20,7 +20,7 @@ class SiteController extends Controller
     public function create()
     {
         $this->authorize('create', Site::class);
-        return Inertia::render('Referentiels/Sites/Create'); // ✅ Correction du chemin
+        return Inertia::render('Referentiels/Sites/Create'); 
     }
 
     public function store(Request $request)
@@ -34,7 +34,7 @@ class SiteController extends Controller
 
         Site::create($validated);
 
-        return redirect()->route('sites.index')
+        return redirect()->route('referentielsSitesIndex')
             ->with('success', 'Site créé.');
     }
 
@@ -55,7 +55,7 @@ class SiteController extends Controller
 
         $site->update($validated);
 
-        return redirect()->route('sites.index')
+        return redirect()->route('referentielsSitesIndex')
             ->with('success', 'Site mis à jour.');
     }
 
@@ -63,7 +63,7 @@ class SiteController extends Controller
     {
         $this->authorize('delete', $site);
         $site->delete();
-        return redirect()->route('sites.index')
+        return redirect()->route('referentielsSitesIndex')
             ->with('success', 'Site supprimé.');
     }
 }

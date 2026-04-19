@@ -14,7 +14,7 @@ class SectionController extends Controller
     {
         $this->authorize('viewAny', Section::class);
 
-        return Inertia::render('Referentiels/Sections/Index', [ // ✅ Correction du chemin
+        return Inertia::render('Referentiels/Sections/Index', [ 
             'sections' => Section::with(['produit', 'uniteMesure'])
                 ->orderBy('nom_section')
                 ->paginate(20),
@@ -54,7 +54,7 @@ class SectionController extends Controller
     {
         $this->authorize('update', $section);
 
-        return Inertia::render('Referentiels/Sections/Edit', [ // ✅ Correction du chemin
+        return Inertia::render('Referentiels/Sections/Edit', [ 
             'section'       => $section,
             'produits'      => Produit::orderBy('nom_produit')->get(),
             'unitesMesure'  => UniteMesure::orderBy('libelle')->get(),
@@ -76,7 +76,7 @@ class SectionController extends Controller
 
         $section->update($validated);
 
-        return redirect()->route('sections.index')
+        return redirect()->route('referentielsSectionsIndex')
             ->with('success', 'Section mise à jour.');
     }
 
@@ -84,7 +84,7 @@ class SectionController extends Controller
     {
         $this->authorize('delete', $section);
         $section->delete();
-        return redirect()->route('sections.index')
+        return redirect()->route('referentielsSectionsIndex')
             ->with('success', 'Section supprimée.');
     }
 }

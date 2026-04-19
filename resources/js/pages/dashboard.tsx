@@ -40,7 +40,7 @@ export default function Dashboard({ userName, roles, kpis, quickLinks }: Props) 
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-3xl font-black text-primary tracking-tight">Bonjour, {userName} 👋</h1>
+                    <h1 className="text-3xl font-black text-primary tracking-tight">Bonjour, {userName} </h1>
                     <p className="text-muted-foreground font-medium mt-1">
                         {today} · Profil : <span className="text-secondary font-bold">{roles.join(', ')}</span>
                     </p>
@@ -78,11 +78,11 @@ export default function Dashboard({ userName, roles, kpis, quickLinks }: Props) 
                     <LayoutDashboard size={20} className="text-secondary"/> Accès rapides
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {quickLinks.map((link) => {
+                    {quickLinks.map((link, index) => { // <-- Ajout de 'index' ici
                         const IconComponent = link.icon ? iconMap[link.icon] : null;
                         return (
                             <Link 
-                                key={link.url} 
+                                key={index} // <-- Utilisation de 'index' comme clé unique
                                 href={link.url} 
                                 className="group flex items-center justify-between rounded-xl border border-border bg-white p-5 transition-all hover:border-secondary hover:shadow-md"
                             >

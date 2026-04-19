@@ -5,13 +5,14 @@ namespace Database\Seeders;
 use App\Models\Personnel;
 use App\Models\Site;
 use App\Models\Localite;
+use App\Models\Sequence; 
 use Illuminate\Database\Seeder;
 
 class PersonnelSeeder extends Seeder
 {
     public function run(): void
     {
-        // S'assurer que le site PE (Peni) existe
+        
         $sitePeni = Site::firstOrCreate(
             ['code_site' => 'PE'],
             ['nom_site' => 'Peni']
@@ -520,5 +521,11 @@ class PersonnelSeeder extends Seeder
                 ]
             );
         }
+
+        
+        Sequence::updateOrCreate(
+            ['site_code' => 'PE', 'annee' => 2026],
+            ['dernier_numero' => 22] 
+        );
     }
 }

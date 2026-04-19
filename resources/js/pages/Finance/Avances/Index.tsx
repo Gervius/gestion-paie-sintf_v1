@@ -1,86 +1,142 @@
-import { useState, useEffect } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, Plus, Eye } from 'lucide-react';
+import { usePage, useForm, Head } from '@inertiajs/react';
+import { useState } from 'react';
+import { Wallet, Plus, CheckCircle2, Banknote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import Heading from '@/components/heading';
-import { NouvelleAvanceModal } from './NouvelleAvanceModal'; 
-import { financeAvancesIndex } from '@/routes';
-import type { PaginatedData } from '@/types';
+import { Badge } from '@/components/ui/badge';
+// ✅ Importation STRICTE via Wayfinder
+import { financeAvancesStore } from '@/routes';
 
 export default function Index() {
-    const { avances, filters } = usePage<any>().props;
-    const [search, setSearch] = useState(filters?.search || '');
-    const [showModal, setShowModal] = useState(false);
+    const { avances, personnels, flash } = usePage<any>().props;
+    const [showForm, setShowForm] = useState(false);
 
-    // Recherche avec Debounce via Inertia
-    useEffect(() => {
-        const delay = setTimeout(() => {
-            if (search !== filters?.search) {
-                router.get(financeAvancesIndex.url(), { search }, { preserveState: true, replace: true });
-            }
-        }, 300);
-        return () => clearTimeout(delay);
-    }, [search, filters?.search]);
+    const { data, setData, post, processing, errors, reset } = useForm({
+        personnel_id: '',
+        montant: '',
+        motif: '',
+        date: new Date().toISOString().split('T')[0],
+    });
 
-    const formatMontant = (v: number) => v.toLocaleString('fr-FR') + ' F';
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // ✅ Syntaxe Wayfinder
+        post(financeAvancesStore.url(), {
+            onSuccess: () => {
+                setShowForm(false);
+                reset();
+            },
+        });
+    };
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-background">
             <Head title="Gestion des Avances" />
 
-            <div className="flex items-center justify-between">
-                <Heading title="Avances sur Salaire" description="Historique et gestion des prêts aux employés" />
-                <Button onClick={() => setShowModal(true)} className="bg-secondary hover:bg-secondary/90 text-white">
-                    <Plus size={18} className="mr-2" />
-                    Octroyer une avance
+            {flash?.success && (
+                <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-4">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="font-bold text-sm">{flash.success}</span>
+                </div>
+            )}
+
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <Heading title="Avances sur Salaire" description="Historique des prêts et suivi des soldes restants" />
+                <Button 
+                    onClick={() => setShowForm(!showForm)} 
+                    className="bg-primary hover:bg-primary/90 text-white font-bold"
+                >
+                    <Plus className="mr-2 h-4 w-4" /> Accorder une avance
                 </Button>
             </div>
 
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                <input
-                    type="text"
-                    placeholder="Rechercher (Nom, Matricule)..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                />
-            </div>
+            {/* FORMULAIRE NOUVELLE AVANCE */}
+            {showForm && (
+                <div className="bg-white border-2 border-primary/20 rounded-xl p-6 shadow-sm animate-in fade-in zoom-in duration-200">
+                    <h3 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <Banknote size={16}/> Saisir une nouvelle avance
+                    </h3>
+                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-xs font-bold text-gray-700">Agent bénéficiaire *</label>
+                            <select
+                                value={data.personnel_id}
+                                onChange={(e) => setData('personnel_id', e.target.value)}
+                                className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                required
+                            >
+                                <option value="">Sélectionner un agent...</option>
+                                {personnels.map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.matricule} — {p.nom} {p.prenom}</option>
+                                ))}
+                            </select>
+                            {errors.personnel_id && <p className="text-xs text-destructive">{errors.personnel_id}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-700">Montant (FCFA) *</label>
+                            <input
+                                type="number" min="500" step="500"
+                                value={data.montant}
+                                onChange={(e) => setData('montant', e.target.value)}
+                                className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none font-bold"
+                                placeholder="Ex: 5000"
+                                required
+                            />
+                            {errors.montant && <p className="text-xs text-destructive">{errors.montant}</p>}
+                        </div>
+                        <div className="space-y-1.5 md:col-span-1">
+                            <label className="text-xs font-bold text-gray-700">Motif *</label>
+                            <input
+                                type="text"
+                                value={data.motif}
+                                onChange={(e) => setData('motif', e.target.value)}
+                                className="w-full p-2.5 border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                placeholder="Transport, Médical..."
+                                required
+                            />
+                            {errors.motif && <p className="text-xs text-destructive">{errors.motif}</p>}
+                        </div>
+                        <Button type="submit" disabled={processing} className="bg-orange-500 hover:bg-orange-600 text-white h-[46px] w-full font-bold">
+                            {processing ? 'Enregistrement...' : 'Valider'}
+                        </Button>
+                    </form>
+                </div>
+            )}
 
+            {/* LISTE DES AVANCES */}
             <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                <table className="w-full">
-                    <thead className="bg-muted/50 border-b border-border text-xs font-bold text-primary uppercase">
+                <table className="w-full text-sm">
+                    <thead className="bg-muted/50 border-b border-border">
                         <tr>
-                            <th className="px-6 py-4 text-left">Agent</th>
-                            <th className="px-6 py-4 text-right">Montant Initial</th>
-                            <th className="px-6 py-4 text-right">Solde Restant</th>
-                            <th className="px-6 py-4 text-center">Date</th>
-                            <th className="px-6 py-4 text-center">Statut</th>
+                            <th className="px-4 py-4 text-left font-bold text-primary uppercase text-[10px]">Date</th>
+                            <th className="px-4 py-4 text-left font-bold text-primary uppercase text-[10px]">Bénéficiaire</th>
+                            <th className="px-4 py-4 text-left font-bold text-primary uppercase text-[10px]">Motif</th>
+                            <th className="px-4 py-4 text-right font-bold text-primary uppercase text-[10px]">Montant Initial</th>
+                            <th className="px-4 py-4 text-right font-bold text-primary uppercase text-[10px]">Reste à Payer</th>
+                            <th className="px-4 py-4 text-center font-bold text-primary uppercase text-[10px]">Statut</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                         {avances.data.length === 0 ? (
-                            <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Aucune avance enregistrée</td></tr>
+                            <tr><td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">Aucune avance enregistrée.</td></tr>
                         ) : (
                             avances.data.map((avance: any) => (
-                                <tr key={avance.id} className="hover:bg-accent/5">
-                                    <td className="px-6 py-4">
-                                        <div className="font-bold">{avance.personnel.matricule}</div>
-                                        <div className="text-sm text-muted-foreground">{avance.personnel.nom} {avance.personnel.prenom}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-medium text-gray-700">
-                                        {formatMontant(avance.montant_initial)}
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-bold text-destructive">
-                                        {formatMontant(avance.solde_restant)}
-                                    </td>
-                                    <td className="px-6 py-4 text-center text-sm">
+                                <tr key={avance.id} className="hover:bg-accent/5 transition-colors">
+                                    <td className="px-4 py-4 font-medium text-gray-600">
                                         {new Date(avance.date_avance).toLocaleDateString('fr-FR')}
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <Badge className={avance.statut === 'ACTIVE' ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' : 'bg-primary/20 text-primary'}>
-                                            {avance.statut}
+                                    <td className="px-4 py-4">
+                                        <div className="font-bold text-gray-900">{avance.personnel?.nom} {avance.personnel?.prenom}</div>
+                                        <div className="text-[10px] text-muted-foreground font-mono">{avance.personnel?.matricule}</div>
+                                    </td>
+                                    <td className="px-4 py-4 text-gray-700">{avance.motif}</td>
+                                    <td className="px-4 py-4 text-right font-bold text-gray-500">{avance.montant_initial.toLocaleString()} F</td>
+                                    <td className="px-4 py-4 text-right font-black text-secondary text-base">
+                                        {avance.solde_restant > 0 ? `${avance.solde_restant.toLocaleString()} F` : '0 F'}
+                                    </td>
+                                    <td className="px-4 py-4 text-center">
+                                        <Badge className={`border-0 ${avance.statut === 'SOLDEE' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                            {avance.statut === 'SOLDEE' ? 'REMBOURSÉE' : 'EN COURS'}
                                         </Badge>
                                     </td>
                                 </tr>
@@ -89,9 +145,6 @@ export default function Index() {
                     </tbody>
                 </table>
             </div>
-
-            {/* Modal de création */}
-            <NouvelleAvanceModal isOpen={showModal} onClose={() => setShowModal(false)} />
         </div>
     );
 }

@@ -3,7 +3,7 @@ import { usePage, Link, router } from '@inertiajs/react';
 import { 
     Search, Shield, Building2, X, Check, UserCog, Trash2, Mail, Filter
 } from 'lucide-react';
-import { usersIndex, usersUpdate, usersDestroy } from '@/routes';
+import { usersIndex, usersUpdate, usersDestroy, usersCreate } from '@/routes';
 import SettingsLayout from '@/layouts/settings/layout';
 
 interface Role { id: number; name: string; }
@@ -50,7 +50,7 @@ export default function Index() {
     const handleSave = () => {
         if (!selectedUser) return;
         setSaving(true);
-        // ✅ Utilisation de router.put au lieu de fetch
+        
         router.put(usersUpdate.url({ user: selectedUser.id }), formData, {
             preserveScroll: true,
             onSuccess: () => closePanel(),
@@ -61,7 +61,7 @@ export default function Index() {
     const handleDelete = (id: number) => {
         if (!confirm('Supprimer définitivement cet utilisateur ?')) return;
         setDeleting(id);
-        // ✅ Utilisation de router.delete au lieu de fetch
+        
         router.delete(usersDestroy.url({ user: id }), {
             preserveScroll: true,
             onFinish: () => setDeleting(null)
@@ -73,8 +73,8 @@ export default function Index() {
             <div className="p-6 h-full flex flex-col space-y-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <h1 className="text-2xl font-bold text-gray-900">Gestion des utilisateurs</h1>
-                    <Link href="/register" className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition">
-                        <UserCog size={18} /> Nouvel utilisateur
+                    <Link href={usersCreate.url()} className="bg-primary text-white font-bold px-4 py-2 rounded-lg">
+                        Nouveau utilisateur
                     </Link>
                 </div>
 

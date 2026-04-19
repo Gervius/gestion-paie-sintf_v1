@@ -12,7 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email','username', 'password', 'site_id'])]
+#[Fillable(['name', 'email','username', 'password', 'site_id', 'must_change_password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -45,10 +45,17 @@ class User extends Authenticatable
 
     public function getAuthorizedSiteIdsAttribute(): array
     {
+        
+        if ($this->hasRole('Super Admin')) {
+            return \App\Models\Site::pluck('id')->toArray();
+        }
+
+        
         $ids = $this->sites()->pluck('id')->toArray();
         if ($this->site_id) {
             $ids[] = $this->site_id;
         }
+        
         return array_unique($ids);
     }
 }

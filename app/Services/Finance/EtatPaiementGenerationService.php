@@ -12,27 +12,25 @@ use Carbon\Carbon;
 
 class EtatPaiementGenerationService
 {
-    /**
-     * Génère un état de paiement périodique pour une section.
-     */
     public function genererIntervalle(int $sectionId, Carbon $dateDebut, Carbon $dateFin): EtatPaiement
     {
         return DB::transaction(function () use ($sectionId, $dateDebut, $dateFin) {
             
-            // 1. Récupérer toutes les lignes EN_ATTENTE de la section dans l'intervalle
+            
             $lignes = PointageLigne::where('statut_ligne', 'EN_ATTENTE')
+                ->whereNull('ticket_paiement_id') // <--- VERROU ANTI DOUBLE-PAIEMENT
                 ->whereHas('pointage', function ($q) use ($sectionId, $dateDebut, $dateFin) {
                     $q->where('section_id', $sectionId)
+                      ->where('statut', 'CLOTURE') // Sécurité supp : uniquement les feuilles clôturées
                       ->whereBetween('date_pointage', [$dateDebut->toDateString(), $dateFin->toDateString()]);
                 })
                 ->with('personnel')
                 ->get();
 
             if ($lignes->isEmpty()) {
-                throw new \Exception('Aucune ligne de pointage en attente pour cette section dans cette période.');
+                throw new \Exception('Aucun pointage valide et non-facturé trouvé pour cette période. Ils sont peut-être déjà dans un autre état de paiement.');
             }
 
-            // 2. Créer l'entête de l'état de paiement
             $section = Section::findOrFail($sectionId);
             $reference = 'ETAT-' . $section->code_section . '-' . $dateDebut->format('dmy') . '-' . $dateFin->format('dmy');
             
@@ -45,7 +43,6 @@ class EtatPaiementGenerationService
                 'montant_total_net'  => 0,
             ]);
 
-            // 3. Agréger par employé (Le Cumul)
             $grouped = $lignes->groupBy('personnel_id');
             $totalBrut = 0;
 
@@ -53,36 +50,36 @@ class EtatPaiementGenerationService
                 $personnel = $lignesPersonnel->first()->personnel;
                 $montantBrut = $lignesPersonnel->sum('montant_brut');
 
-                // Détecter l'avance active sans la déduire automatiquement
                 $avanceActive = Avance::where('personnel_id', $personnelId)
                     ->where('statut', 'ACTIVE')
                     ->where('solde_restant', '>', 0)
                     ->first();
 
-                // Créer le ticket (montant net = montant brut par défaut, déduction à 0)
                 $ticket = TicketPaiement::create([
                     'personnel_id'         => $personnelId,
                     'etat_paiement_id'     => $etat->id,
                     'date_generation'      => now()->toDateString(),
                     'montant_brut_cumule'  => $montantBrut,
-                    'montant_deduit_manuel'=> 0, // Le caissier ajustera manuellement (Entente)
+                    'montant_deduit_manuel'=> 0, 
                     'montant_net'          => $montantBrut,
                     'mode_paiement'        => $personnel->preference_paiement ?? 'ESPECES',
                     'statut'               => 'NON_SOLDE',
-                    'avance_id'            => $avanceActive ? $avanceActive->id : null, // Optionnel: aide pour l'affichage
+                    'avance_id'            => $avanceActive ? $avanceActive->id : null, 
                 ]);
 
-                // Lier les lignes au ticket
+                
                 PointageLigne::whereIn('id', $lignesPersonnel->pluck('id'))
-                    ->update(['ticket_paiement_id' => $ticket->id]);
+                    ->update([
+                        'ticket_paiement_id' => $ticket->id,
+                        'statut_ligne'       => 'INCLUS_ETAT'
+                    ]);
                     
                 $totalBrut += $montantBrut;
             }
 
-            // Mettre à jour l'état
             $etat->update([
                 'montant_total_brut' => $totalBrut,
-                'montant_total_net'  => $totalBrut, // Sera mis à jour quand le caissier fera ses retenues
+                'montant_total_net'  => $totalBrut,
             ]);
 
             return $etat;

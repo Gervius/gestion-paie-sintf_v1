@@ -16,7 +16,8 @@ class TicketPaiement extends Model
     protected $fillable = [
         'personnel_id', 'etat_paiement_id', 'lot_wave_id', 'date_generation',
         'montant_brut_cumule', 'montant_deduit_manuel', 'montant_net',
-        'mode_paiement', 'reference_paiement', 'statut',
+        'mode_paiement', 'reference_paiement', 'statut', 
+        'avance_id', 
     ];
 
     protected $casts = ['date_generation' => 'date'];
@@ -39,5 +40,11 @@ class TicketPaiement extends Model
     public function pointageLignes()
     {
         return $this->hasMany(PointageLigne::class);
+    }
+
+    
+    public function avance()
+    {
+        return $this->belongsTo(Avance::class, 'avance_id');
     }
 }
