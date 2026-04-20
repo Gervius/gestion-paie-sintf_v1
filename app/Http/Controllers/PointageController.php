@@ -75,8 +75,10 @@ class PointageController extends Controller
 
     public function show(Pointage $pointage)
     {
+        
         $pointage->load([
             'site',
+            'section.produit', 
             'section.uniteMesure',
             'lignes.personnel'
         ]);
@@ -118,6 +120,18 @@ class PointageController extends Controller
     }
 
     public function generatePdf(Pointage $pointage, GeneratePointagePdfAction $action)
+    {
+        try {
+            return $action->execute($pointage);
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Génère l'export Excel pour la comptabilité
+     */
+    public function exportExcel(Pointage $pointage, \App\Actions\Pointage\ExportPointageExcelAction $action)
     {
         try {
             return $action->execute($pointage);

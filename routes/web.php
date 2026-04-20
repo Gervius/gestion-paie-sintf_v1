@@ -94,7 +94,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('/pointages/{pointage}/agents/{ligne}', [PointageController::class, 'removeAgent'])->name('apiPointageAgentsRemove');
             Route::post('/pointages/{pointage}/clear', [PointageController::class, 'clearAll'])->name('apiPointageClear');
             Route::post('/pointages/{pointage}/reset', [PointageController::class, 'resetToDefault'])->name('apiPointageReset');
-            Route::post('/pointages/{pointage}/pdf', [PointageController::class, 'generatePdf'])->name('apiPointagePdf');
+            Route::get('/api/pointages/{pointage}/pdf', [PointageController::class, 'generatePdf'])->name('apiPointagePdf');
             Route::post('/pointages/{pointage}/submit', [PointageController::class, 'submitQuantities'])->name('apiPointageSubmit');
             Route::get('/personnel/search', [PointageController::class, 'searchPersonnel'])->name('apiPersonnelSearch');
             Route::post('/pointages/{pointage}/valider-preparation', [PointageController::class, 'validerPreparation'])->name('apiPointageValiderPreparation');

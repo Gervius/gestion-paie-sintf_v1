@@ -18,7 +18,7 @@ class PointageLigne extends Model
     protected $fillable = [
         'pointage_id', 'personnel_id', 'matricule_personnel', 'quantite',
         'montant_brut', 'type_ligne', 'motif_regularisation', 'statut_ligne',
-        'ticket_paiement_id',
+        'ticket_paiement_id', 'moyen_paiement', 
     ];
 
     protected $attributes = [
@@ -52,5 +52,4 @@ class PointageLigne extends Model
             ->logOnlyDirty()
             ->setDescriptionForEvent(fn(string $eventName) => "Ligne de pointage {$eventName}");
     }
-
 }

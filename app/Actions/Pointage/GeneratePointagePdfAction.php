@@ -10,15 +10,18 @@ class GeneratePointagePdfAction
 {
     public function execute(Pointage $pointage): Response
     {
-        if ($pointage->statut !== 'PREPARATION') {
-            throw new \Exception('La feuille doit être en préparation pour être éditée sur le terrain.');
-        }
+        
+        $pointage->load([
+            'site', 
+            'section.produit', 
+            'section.uniteMesure', 
+            'lignes.personnel'
+        ]);
 
-        $pointage->load(['site', 'section', 'lignes.personnel']);
-        $pointage->update(['statut' => 'EDITE_TERRAIN']);
+        
+        $pdf = Pdf::loadView('pdf.pointage-terrain', ['pointage' => $pointage])
+                  ->setPaper('a4', 'landscape');
 
-        $pdf = Pdf::loadView('pdf.pointage-terrain', ['pointage' => $pointage]);
-
-        return $pdf->download("pointage-{$pointage->id}.pdf");
+        return $pdf->download("FICHE_POINTAGE_{$pointage->id}.pdf");
     }
 }

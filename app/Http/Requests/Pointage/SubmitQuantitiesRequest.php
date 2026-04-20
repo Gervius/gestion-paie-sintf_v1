@@ -14,9 +14,10 @@ class SubmitQuantitiesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'quantities'               => 'required|array',
-            'quantities.*.ligne_id'    => 'required|integer|exists:pointage_lignes,id',
-            'quantities.*.quantite'    => 'required|numeric|min:0',
+            'quantities'                  => 'required|array',
+            'quantities.*.ligne_id'       => 'required|integer|exists:pointage_lignes,id',
+            'quantities.*.quantite'       => 'required|numeric|min:0',
+            'quantities.*.moyen_paiement' => 'required|string|in:WAVE,ESPECES',
         ];
     }
 }
