@@ -180,4 +180,19 @@ class PointageController extends Controller
                 ->get(['id', 'matricule', 'nom', 'prenom'])
         );
     }
+
+    public function destroy(Pointage $pointage)
+    {
+        
+        $this->authorize('delete', $pointage);
+
+        
+        if ($pointage->statut !== 'PREPARATION') {
+            return back()->withErrors(['error' => 'Impossible de supprimer une feuille de pointage qui n\'est plus en préparation.']);
+        }
+
+        $pointage->delete();
+
+        return back()->with('success', 'La feuille de pointage a été supprimée avec succès.');
+    }
 }

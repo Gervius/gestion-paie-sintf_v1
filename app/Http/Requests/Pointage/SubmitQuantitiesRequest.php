@@ -17,7 +17,7 @@ class SubmitQuantitiesRequest extends FormRequest
             'quantities'                  => 'required|array',
             'quantities.*.ligne_id'       => 'required|integer|exists:pointage_lignes,id',
             'quantities.*.quantite'       => 'required|numeric|min:0',
-            'quantities.*.moyen_paiement' => 'required|string|in:WAVE,ESPECES',
+            'quantities.*.moyen_paiement' => 'required|string|in:WAVE,ESPECES', 
         ];
     }
 }

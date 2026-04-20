@@ -19,13 +19,21 @@ export default function Show() {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     
-    const [localQuantities, setLocalQuantities] = useState<Record<number, number>>(
-        Object.fromEntries(pointage.lignes.map((l: any) => [l.id, Number(l.quantite) || 0]))
-    );
+    const [localQuantities, setLocalQuantities] = useState<Record<number, number>>({});
+    const [localPayments, setLocalPayments] = useState<Record<number, string>>({});
 
-    const [localPayments, setLocalPayments] = useState<Record<number, string>>(
-        Object.fromEntries(pointage.lignes.map((l: any) => [l.id, l.moyen_paiement || l.personnel.preference_paiement || 'WAVE']))
-    );
+    // --- Fonctions intelligentes pour synchroniser l'affichage et les données ---
+    const getPaymentValue = (ligne: any) => {
+        if (localPayments[ligne.id] !== undefined) return localPayments[ligne.id];
+        return ligne.moyen_paiement || ligne.personnel.preference_paiement || 'WAVE';
+    };
+
+    const getQuantityValue = (ligne: any) => {
+        if (localQuantities[ligne.id] !== undefined) return localQuantities[ligne.id];
+        return Number(ligne.quantite) || 0;
+    };
+
+    // ---------------------------------------------------------------------------
 
     const handleAddAgent = (personnelId: number) => {
         router.post(apiPointageAgentsAdd.url({ pointage: pointage.id }), 
@@ -52,17 +60,19 @@ export default function Show() {
     const handleSubmitAll = () => {
         if (!confirm('Clôturer définitivement cette feuille ? Les montants seront figés et prêts pour la paie.')) return;
         
-        const quantities = Object.entries(localQuantities).map(([id, q]) => ({ 
-            ligne_id: parseInt(id), 
-            quantite: Number(q),
-            moyen_paiement: localPayments[parseInt(id)]
+        // On utilise nos fonctions intelligentes pour être 100% sûr d'envoyer la bonne valeur
+        const quantities = pointage.lignes.map((ligne: any) => ({ 
+            ligne_id: ligne.id, 
+            quantite: getQuantityValue(ligne),
+            moyen_paiement: getPaymentValue(ligne)
         }));
 
         router.post(apiPointageSubmit.url({ pointage: pointage.id }), { quantities }, {
             preserveScroll: true,
             onError: (errors) => {
-                console.error(errors);
-                alert(errors.error || "Erreur lors de la validation. Vérifiez les quantités ou vos permissions.");
+                console.error("Erreurs Laravel :", errors);
+                const errorMessages = Object.values(errors).join('\n');
+                alert(errorMessages || "Erreur lors de la validation. Vérifiez les données saisies.");
             }
         });
     };
@@ -74,7 +84,7 @@ export default function Show() {
         setSearchResults(await res.json());
     };
 
-    const totalBrut = Object.values(localQuantities).reduce((sum, q) => sum + ((Number(q) || 0) * taux), 0);
+    const totalBrut = pointage.lignes.reduce((sum: number, ligne: any) => sum + (getQuantityValue(ligne) * taux), 0);
 
     return (
         <div className="p-6 space-y-6 bg-background">
@@ -185,15 +195,15 @@ export default function Show() {
                                         {pointage.statut === 'EDITE_TERRAIN' && canSubmit ? (
                                             <select
                                                 className="w-full text-center p-2 border-2 border-secondary/50 rounded-lg focus:ring-2 focus:ring-secondary outline-none font-bold text-xs bg-orange-50/30 uppercase cursor-pointer"
-                                                value={localPayments[ligne.id] || 'WAVE'}
+                                                value={getPaymentValue(ligne)}
                                                 onChange={(e) => setLocalPayments({...localPayments, [ligne.id]: e.target.value})}
                                             >
                                                 <option value="WAVE">WAVE</option>
                                                 <option value="ESPECES">ESPÈCES</option>
                                             </select>
                                         ) : (
-                                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md border uppercase ${localPayments[ligne.id] === 'ESPECES' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
-                                                {localPayments[ligne.id] || 'WAVE'}
+                                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md border uppercase ${getPaymentValue(ligne) === 'ESPECES' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
+                                                {getPaymentValue(ligne)}
                                             </span>
                                         )}
                                     </td>
@@ -208,13 +218,13 @@ export default function Show() {
                                             <input 
                                                 type="number" min="0" step="0.5"
                                                 className="w-full text-center p-2 border-2 border-secondary/50 rounded-lg focus:ring-2 focus:ring-secondary outline-none transition-all font-bold text-sm bg-orange-50/30"
-                                                value={localQuantities[ligne.id] ?? ''}
+                                                value={getQuantityValue(ligne) || ''}
                                                 onChange={(e) => setLocalQuantities({...localQuantities, [ligne.id]: parseFloat(e.target.value) || 0})}
                                                 placeholder="0"
                                             />
                                         ) : (
                                             <span className="font-mono font-bold text-gray-900 text-sm">
-                                                {ligne.quantite !== null && ligne.quantite !== undefined ? Number(ligne.quantite).toFixed(2) : '0.00'}
+                                                {Number(getQuantityValue(ligne)).toFixed(2)}
                                             </span>
                                         )}
                                     </td>
@@ -224,7 +234,7 @@ export default function Show() {
                                     </td>
 
                                     <td className="px-4 py-3 text-right font-black text-primary text-sm whitespace-nowrap">
-                                        {((localQuantities[ligne.id] || 0) * taux).toLocaleString('fr-FR')} F
+                                        {(getQuantityValue(ligne) * taux).toLocaleString('fr-FR')} F
                                     </td>
 
                                     {pointage.statut === 'PREPARATION' && (

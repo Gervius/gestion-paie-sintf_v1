@@ -73,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/finance/etats', [FinanceController::class, 'etatStore'])->name('financeEtatsStore');
         Route::get('/finance/etats/{etat}', [FinanceController::class, 'etatShow'])->name('financeEtatsShow');
         Route::post('/finance/etats/{etat}/valider', [FinanceController::class, 'etatValider'])->name('financeEtatsValider');
+        Route::delete('/finance/etats/{etat}', [FinanceController::class, 'etatDestroy'])->name('financeEtatsDestroy');
 
         // --- Paiement & Export ---
         Route::post('/finance/tickets/{ticket}/payer', [FinanceController::class, 'paiementEspeces'])->name('financeTicketsPayer');
@@ -81,12 +82,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/finance/etats/{etat}/wave/generer', [FinanceController::class, 'genererLotWave'])->name('financeWaveGenerer');
         Route::get('/finance/wave/{lot}/telecharger', [FinanceController::class, 'telechargerLotWave'])->name('financeWaveTelecharger');
         Route::post('/finance/wave/generer-global', [FinanceController::class, 'genererLotWaveGlobal'])->name('financeWaveGenererGlobal');
+        
 
         // --- Gestion des pointages ---
         Route::get('/pointages', [PointageController::class, 'index'])->name('pointageIndex');
         Route::get('/pointages/create', [PointageController::class, 'create'])->name('pointageCreate');
         Route::post('/pointages', [PointageController::class, 'store'])->name('pointageStore');
         Route::get('/pointages/{pointage}', [PointageController::class, 'show'])->name('pointageShow');
+        
+        Route::delete('/pointages/{pointage}', [PointageController::class, 'destroy'])->name('pointageDestroy');
 
         // --- Endpoints API Pointages ---
         Route::prefix('api')->group(function () {

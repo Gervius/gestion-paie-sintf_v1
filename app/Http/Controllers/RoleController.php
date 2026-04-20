@@ -44,7 +44,7 @@ class RoleController extends Controller
             $role->syncPermissions($request->permissions);
         }
 
-        return redirect()->route('roles.index')
+        return redirect()->route('rolesIndex')
             ->with('success', 'Rôle créé.');
     }
 
@@ -77,7 +77,7 @@ class RoleController extends Controller
 
         $role->syncPermissions($request->permissions ?? []);
 
-        return redirect()->route('roles.index')
+        return redirect()->route('rolesIndex')
             ->with('success', 'Rôle mis à jour.');
     }
 
@@ -91,7 +91,7 @@ class RoleController extends Controller
 
         $role->delete();
 
-        return redirect()->route('roles.index')
+        return redirect()->route('rolesIndex')
             ->with('success', 'Rôle supprimé.');
     }
 }

@@ -15,6 +15,12 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use App\Models\LotPaiementWave;
+use App\Exports\WaveBulkExport;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Models\PointageLigne;
+use Illuminate\Support\Facades\DB;
+
 
 class FinanceController extends Controller
 {
@@ -172,6 +178,65 @@ class FinanceController extends Controller
             return back()->with('success', "Avance accordée à {$personnel->nom} {$personnel->prenom}.");
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    
+
+    /**
+     * Génère le lot en base de données
+     */
+    public function genererLotWave(Request $request, EtatPaiement $etat, WaveExportService $service)
+    {
+        $this->authorize('update', $etat);
+        
+        try {
+            $service->genererLotPourEtat($etat, $request->user()->id);
+            return back()->with('success', "Le Lot Wave a été généré avec succès. Vous pouvez maintenant télécharger le fichier Excel.");
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Déclenche le téléchargement du fichier Excel
+     */
+    public function telechargerLotWave(LotPaiementWave $lot)
+    {
+        return Excel::download(new WaveBulkExport($lot), $lot->reference_lot . '.xlsx');
+    }
+
+    /**
+     * Suppression d'un état de paiement et libération des pointages
+     */
+    public function etatDestroy(EtatPaiement $etat)
+    {
+        // On empêche la suppression si des tickets sont déjà payés ou dans un lot Wave
+        $ticketsVerrouilles = $etat->tickets()->where('statut', '!=', 'NON_SOLDE')->count();
+        
+        if ($ticketsVerrouilles > 0) {
+            return back()->withErrors(['error' => 'Impossible de supprimer cet état. Certains paiements sont déjà en cours ou soldés.']);
+        }
+
+        try {
+            DB::transaction(function () use ($etat) {
+                
+                PointageLigne::whereIn('ticket_paiement_id', $etat->tickets()->pluck('id'))
+                    ->update([
+                        'ticket_paiement_id' => null,
+                        'statut_ligne' => 'EN_ATTENTE'
+                    ]);
+
+                
+                $etat->tickets()->delete();
+
+                
+                $etat->delete();
+            });
+
+            return redirect()->route('financeEtatsIndex')->with('success', 'État de paiement supprimé. Les pointages sont de nouveau disponibles.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Erreur lors de la suppression : ' . $e->getMessage()]);
         }
     }
 }

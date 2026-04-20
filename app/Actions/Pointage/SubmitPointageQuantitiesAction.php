@@ -20,8 +20,8 @@ class SubmitPointageQuantitiesAction
                     ->update([
                         'quantite'       => $item['quantite'],
                         'montant_brut'   => $item['quantite'] * $taux,
-                        'moyen_paiement' => $item['moyen_paiement'], 
-                        'statut_ligne'   => 'EN_ATTENTE' 
+                        'moyen_paiement' => $item['moyen_paiement'] ?? 'ESPECES', // 💡 C'EST CETTE LIGNE QUI MANQUAIT !
+                        'statut_ligne'   => 'EN_ATTENTE'
                     ]);
             }
 

@@ -16,7 +16,6 @@ class EtatPaiementGenerationService
     {
         return DB::transaction(function () use ($sectionId, $dateDebut, $dateFin) {
             
-            
             $lignes = PointageLigne::where('statut_ligne', 'EN_ATTENTE')
                 ->whereNull('ticket_paiement_id') // <--- VERROU ANTI DOUBLE-PAIEMENT
                 ->whereHas('pointage', function ($q) use ($sectionId, $dateDebut, $dateFin) {
@@ -55,6 +54,10 @@ class EtatPaiementGenerationService
                     ->where('solde_restant', '>', 0)
                     ->first();
 
+                // 💡 CORRECTION ICI : On récupère la valeur saisie sur le terrain (moyen_paiement de la ligne)
+                // S'il n'y a rien, on se rabat sur la préférence du profil, sinon ESPECES.
+                $modeChoisiSurTerrain = $lignesPersonnel->first()->moyen_paiement ?? $personnel->preference_paiement ?? 'ESPECES';
+
                 $ticket = TicketPaiement::create([
                     'personnel_id'         => $personnelId,
                     'etat_paiement_id'     => $etat->id,
@@ -62,12 +65,11 @@ class EtatPaiementGenerationService
                     'montant_brut_cumule'  => $montantBrut,
                     'montant_deduit_manuel'=> 0, 
                     'montant_net'          => $montantBrut,
-                    'mode_paiement'        => $personnel->preference_paiement ?? 'ESPECES',
+                    'mode_paiement'        => $modeChoisiSurTerrain, // ✅ Intégration de la correction
                     'statut'               => 'NON_SOLDE',
                     'avance_id'            => $avanceActive ? $avanceActive->id : null, 
                 ]);
 
-                
                 PointageLigne::whereIn('id', $lignesPersonnel->pluck('id'))
                     ->update([
                         'ticket_paiement_id' => $ticket->id,

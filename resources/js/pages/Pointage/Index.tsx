@@ -1,7 +1,7 @@
 import { usePage, Link, router, Head } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, CheckCircle2, Eye } from 'lucide-react';
-import { pointageCreate, pointageShow } from '@/routes';
+import { Search, Plus, CheckCircle2, Eye, Trash2 } from 'lucide-react';
+import { pointageCreate, pointageShow, pointageDestroy } from '@/routes';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,11 @@ export default function Index() {
 
     const [search, setSearch] = useState(filters?.search || '');
     const isInitialRender = useRef(true);
+
+    const handleDelete = (id: number) => {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cette feuille de pointage ? Cette action est irréversible.')) return;
+        router.delete(pointageDestroy.url({ pointage: id }), { preserveScroll: true });
+    };
 
     useEffect(() => {
         if (isInitialRender.current) {
@@ -112,9 +117,21 @@ export default function Index() {
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-4 text-right">
-                                        <Link href={pointageShow.url({ pointage: item.id })} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-all">
-                                            <Eye size={14} /> Consulter
-                                        </Link>
+                                        <div className="flex justify-end gap-2">
+                                            <Link href={pointageShow.url({ pointage: item.id })} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg hover:bg-primary/20 transition-all">
+                                                <Eye size={14} /> Consulter
+                                            </Link>
+                                            
+                                            {/* Bouton visible UNIQUEMENT si le statut est PREPARATION */}
+                                            {item.statut === 'PREPARATION' && (
+                                                <button 
+                                                    onClick={() => handleDelete(item.id)} 
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-all"
+                                                >
+                                                    <Trash2 size={14} /> Supprimer
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))

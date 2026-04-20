@@ -1,59 +1,67 @@
+import { usePage, router, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
-import { router, usePage, Head, Link } from '@inertiajs/react';
-import { Wallet, Save, CheckCircle, ArrowLeft, Banknote, Edit3, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import Heading from '@/components/heading';
-import { Badge } from '@/components/ui/badge';
-
-
 import { 
-    financeEtatsIndex, 
-    financeEtatsValider, 
-    financeEtatsPayerMassEspeces, 
-    financeTicketsUpdateRetenue 
-} from '@/routes';
+    ArrowLeft, CheckCircle2, AlertCircle, Wallet, 
+    Banknote, Edit3, Save, X, FileSpreadsheet, Trash2 
+} from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 
 export default function Show() {
     const { etat, flash } = usePage<any>().props;
+    
     const [editingTicket, setEditingTicket] = useState<number | null>(null);
-    const [tempRetenue, setTempRetenue] = useState<string>('0');
+    const [retenueValue, setRetenueValue] = useState<number>(0);
+
+    const isProvisoire = etat.statut === 'PROVISOIRE';
+    const isValide = etat.statut === 'VALIDE';
+
+    
+    const handleValiderEtat = () => {
+        if (!confirm('Êtes-vous sûr de valider cet état ? Les montants seront verrouillés pour le paiement.')) return;
+        router.post(`/finance/etats/${etat.id}/valider`, {}, { preserveScroll: true });
+
+    };
+
+    const handleDeleteEtat = () => {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cet état ? Tous les pointages liés redeviendront "En attente" pour une prochaine génération.')) return;
+        router.delete(`/finance/etats/${etat.id}`);
+    };
+
+    const handlePayerEspeces = () => {
+        if (!confirm('Confirmez-vous le paiement en masse de tous les tickets ESPÈCES de cet état ?')) return;
+        router.post(`/finance/etats/${etat.id}/payer-especes-masse`, {}, { preserveScroll: true });
+    };
 
     const handleSaveRetenue = (ticketId: number) => {
-        
-        router.post(financeTicketsUpdateRetenue.url({ ticket: ticketId }), {
-            montant_retenue: tempRetenue
-        }, { 
-            preserveScroll: true, 
-            onSuccess: () => setEditingTicket(null) 
+        router.post(`/finance/tickets/${ticketId}/retenue`, { montant_retenue: retenueValue }, {
+            preserveScroll: true,
+            onSuccess: () => setEditingTicket(null),
+            onError: (err) => alert(err.error || "Erreur lors de l'application de la retenue.")
         });
     };
 
-    const handleValiderEtat = () => {
-        if (!confirm('Voulez-vous figer cet état ? Une fois validé, les retenues ne seront plus modifiables.')) return;
-        router.post(financeEtatsValider.url({ etat: etat.id }), {}, { preserveScroll: true });
-    };
-
-    const handlePaiementMasse = () => {
-        if (!confirm('Confirmer le paiement immédiat en espèces de TOUS les tickets de cet état ?')) return;
-        router.post(financeEtatsPayerMassEspeces.url({ etat: etat.id }));
-    };
+    // --- Calculs Rapides (Statistiques) ---
+    const totalTickets = etat.tickets.length;
+    const ticketsWave = etat.tickets.filter((t: any) => t.mode_paiement === 'WAVE').length;
+    const ticketsEspeces = etat.tickets.filter((t: any) => t.mode_paiement === 'ESPECES').length;
+    const totalRetenues = etat.tickets.reduce((sum: number, t: any) => sum + Number(t.montant_deduit_manuel), 0);
 
     return (
         <div className="p-6 space-y-6 bg-background">
-            <Head title={`Détail État - ${etat.reference_etat}`} />
+            <Head title={`État de Paie - ${etat.reference_etat}`} />
 
-            <Link href={financeEtatsIndex.url()} className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors">
-                <ArrowLeft size={16} /> Retour à la liste des états
+            <Link href="/finance/etats" className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors">
+                <ArrowLeft size={16} /> Retour aux états de paie
             </Link>
 
-            {/* Affichage des notifications Flash */}
             {flash?.success && (
-                <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-4">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl shadow-sm">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
                     <span className="font-bold text-sm">{flash.success}</span>
                 </div>
             )}
-            
+
             {flash?.error && (
                 <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl shadow-sm">
                     <AlertCircle className="h-5 w-5 text-red-600" />
@@ -61,130 +69,170 @@ export default function Show() {
                 </div>
             )}
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-border shadow-sm">
-                <div>
-                    <Heading title={etat.reference_etat} description={`Période de cumul pour la section ${etat.section?.nom_section}`} />
-                    <Badge className={`mt-2 border-0 ${etat.statut === 'VALIDE' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                        STATUT : {etat.statut}
-                    </Badge>
+            {/* EN-TÊTE ET KPI */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-4 bg-white p-6 rounded-xl border border-border shadow-sm flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-black text-primary">ÉTAT {etat.reference_etat}</h2>
+                        <p className="text-muted-foreground font-medium mt-1">Section : {etat.section.nom_section} — Date : {new Date(etat.date_etat).toLocaleDateString('fr-FR')}</p>
+                    </div>
+                    <div className="text-right flex flex-col items-end gap-2">
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold ${
+                            isProvisoire ? 'bg-orange-100 text-orange-700' : 
+                            isValide ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                            STATUT : {etat.statut}
+                        </span>
+                        
+                        
+                        {isProvisoire && (
+                            <Button onClick={handleDeleteEtat} variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 h-8 mt-1">
+                                <Trash2 size={14} className="mr-1.5" /> Supprimer l'état
+                            </Button>
+                        )}
+                    </div>
                 </div>
-                <div className="text-right">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Net total à décaisser</p>
-                    <p className="text-3xl font-black text-secondary">{etat.montant_total_net.toLocaleString()} FCFA</p>
+
+                <div className="bg-white p-5 rounded-xl border border-border shadow-sm">
+                    <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Total Brut Généré</div>
+                    <div className="text-2xl font-black text-gray-900">{Number(etat.montant_total_brut).toLocaleString('fr-FR')} F</div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-border shadow-sm">
+                    <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Total Retenues (Avances)</div>
+                    <div className="text-2xl font-black text-destructive">{totalRetenues.toLocaleString('fr-FR')} F</div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-border shadow-sm bg-primary/5 border-primary/20">
+                    <div className="text-xs font-bold text-primary uppercase mb-1">Net Total à Payer</div>
+                    <div className="text-2xl font-black text-primary">{Number(etat.montant_total_net).toLocaleString('fr-FR')} F</div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-border shadow-sm flex flex-col justify-center">
+                    <div className="text-xs font-bold text-muted-foreground uppercase mb-2">Répartition ({totalTickets} agents)</div>
+                    <div className="flex gap-4">
+                        <span className="text-sm font-bold text-indigo-600"><Wallet size={14} className="inline mr-1"/> {ticketsWave} Wave</span>
+                        <span className="text-sm font-bold text-emerald-600"><Banknote size={14} className="inline mr-1"/> {ticketsEspeces} Espèces</span>
+                    </div>
                 </div>
             </div>
 
+            {/* TABLEAU DES TICKETS */}
             <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-[10px] font-bold text-primary uppercase tracking-wider">
                         <tr>
-                            <th className="px-4 py-4 text-left">Personnel</th>
-                            <th className="px-4 py-4 text-right">Salaire Brut</th>
-                            <th className="px-4 py-4 text-center">Dette (Avance)</th>
-                            <th className="px-4 py-4 text-center w-48">Retenue (Entente)</th>
+                            <th className="px-4 py-4 text-left">Agent</th>
+                            <th className="px-4 py-4 text-center">Mode</th>
+                            <th className="px-4 py-4 text-right">Brut Cumulé</th>
+                            <th className="px-4 py-4 text-center">Avance en cours</th>
+                            <th className="px-4 py-4 text-right">Retenue (Déduction)</th>
                             <th className="px-4 py-4 text-right">Net à Payer</th>
-                            <th className="px-4 py-4 text-center">Statut</th>
+                            <th className="px-4 py-4 text-center">Statut Ticket</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                         {etat.tickets.map((ticket: any) => (
-                            <tr key={ticket.id} className="hover:bg-accent/5 transition-colors">
-                                <td className="px-4 py-4">
-                                    <div className="font-bold text-gray-900">{ticket.personnel?.nom} {ticket.personnel?.prenom}</div>
-                                    <div className="text-[10px] text-muted-foreground font-bold italic">{ticket.mode_paiement}</div>
+                            <tr key={ticket.id} className="hover:bg-accent/5">
+                                <td className="px-4 py-3">
+                                    <div className="font-bold text-gray-900">{ticket.personnel.matricule}</div>
+                                    <div className="text-xs text-muted-foreground">{ticket.personnel.nom} {ticket.personnel.prenom}</div>
                                 </td>
-                                <td className="px-4 py-4 text-right font-medium text-gray-600">
-                                    {ticket.montant_brut_cumule.toLocaleString()} F
+                                <td className="px-4 py-3 text-center">
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md border uppercase ${ticket.mode_paiement === 'ESPECES' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
+                                        {ticket.mode_paiement}
+                                    </span>
                                 </td>
-                                <td className="px-4 py-4 text-center">
+                                <td className="px-4 py-3 text-right font-medium text-gray-600">
+                                    {Number(ticket.montant_brut_cumule).toLocaleString('fr-FR')} F
+                                </td>
+                                
+                                <td className="px-4 py-3 text-center">
                                     {ticket.avance ? (
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-[10px] font-black border border-orange-200">
-                                            <Wallet size={12} /> RESTANT: {ticket.avance.solde_restant.toLocaleString()} F
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-300 text-xs">—</span>
-                                    )}
-                                </td>
-                                
-                                
-                                <td className="px-4 py-4 text-center">
-                                    {etat.statut === 'PROVISOIRE' ? (
-                                        ticket.avance ? (
-                                            editingTicket === ticket.id ? (
-                                                <div className="flex items-center gap-1">
-                                                    <input 
-                                                        type="number" className="w-full text-center p-1.5 border-2 border-primary rounded-lg font-bold outline-none"
-                                                        value={tempRetenue} onChange={(e) => setTempRetenue(e.target.value)} autoFocus
-                                                    />
-                                                    <Button size="sm" onClick={() => handleSaveRetenue(ticket.id)} className="bg-primary h-9 px-2">
-                                                        <Save size={16}/>
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <button 
-                                                    onClick={() => { setEditingTicket(ticket.id); setTempRetenue(ticket.montant_deduit_manuel.toString()); }}
-                                                    className={`group flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed transition-all ${ticket.montant_deduit_manuel > 0 ? 'bg-destructive/5 border-destructive text-destructive' : 'hover:border-primary text-gray-400'}`}
-                                                >
-                                                    <span className="font-black">
-                                                        {ticket.montant_deduit_manuel > 0 ? `-${ticket.montant_deduit_manuel.toLocaleString()} F` : 'Ajuster retenue'}
-                                                    </span>
-                                                    <Edit3 size={14} className="opacity-0 group-hover:opacity-100" />
-                                                </button>
-                                            )
-                                        ) : (
-                                            <span className="text-gray-300 text-[10px] font-bold uppercase tracking-tighter italic">Non éligible</span>
-                                        )
-                                    ) : (
-                                        <span className={`font-black ${ticket.montant_deduit_manuel > 0 ? 'text-destructive' : 'text-gray-400'}`}>
-                                            {ticket.montant_deduit_manuel > 0 ? `-${ticket.montant_deduit_manuel.toLocaleString()} F` : '0 F'}
+                                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                                            {Number(ticket.avance.solde_restant).toLocaleString('fr-FR')} F
                                         </span>
+                                    ) : (
+                                        <span className="text-xs text-gray-400">-</span>
                                     )}
                                 </td>
 
-                                <td className="px-4 py-4 text-right font-black text-primary text-base">
-                                    {ticket.montant_net.toLocaleString()} F
-                                </td>
-                                
-                                <td className="px-4 py-4 text-center">
-                                    {ticket.statut === 'SOLDE' ? (
-                                        <Badge className="bg-green-100 text-green-700 shadow-none border-0">PAYÉ</Badge>
+                                <td className="px-4 py-3 text-right">
+                                    {editingTicket === ticket.id ? (
+                                        <div className="flex items-center justify-end gap-2">
+                                            <input 
+                                                type="number" 
+                                                className="w-24 p-1 text-right border rounded outline-none focus:ring-2 focus:ring-primary text-sm font-bold"
+                                                value={retenueValue}
+                                                onChange={(e) => setRetenueValue(Number(e.target.value))}
+                                                max={ticket.avance ? Number(ticket.avance.solde_restant) : 0}
+                                            />
+                                            <button onClick={() => handleSaveRetenue(ticket.id)} className="text-green-600 hover:bg-green-50 p-1 rounded"><Save size={16}/></button>
+                                            <button onClick={() => setEditingTicket(null)} className="text-red-600 hover:bg-red-50 p-1 rounded"><X size={16}/></button>
+                                        </div>
                                     ) : (
-                                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                                            {etat.statut === 'VALIDE' ? 'Prêt au décaissement' : 'En attente validation'}
-                                        </span>
+                                        <div className="flex items-center justify-end gap-2 font-bold text-destructive">
+                                            -{Number(ticket.montant_deduit_manuel).toLocaleString('fr-FR')} F
+                                            {isProvisoire && ticket.avance && (
+                                                <button onClick={() => { setEditingTicket(ticket.id); setRetenueValue(Number(ticket.montant_deduit_manuel)); }} className="text-gray-400 hover:text-primary transition-colors">
+                                                    <Edit3 size={14} />
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
+                                </td>
+
+                                <td className="px-4 py-3 text-right font-black text-primary text-base">
+                                    {Number(ticket.montant_net).toLocaleString('fr-FR')} F
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ticket.statut === 'SOLDE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                        {ticket.statut.replace('_', ' ')}
+                                    </span>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
-                    {etat.tickets.length > 0 && (
-                        <tfoot className="bg-primary/5 border-t border-primary/20">
-                            <tr>
-                                <td colSpan={4} className="px-4 py-4 text-right font-bold uppercase text-[10px] text-primary tracking-widest">Cumul Net à décaisser</td>
-                                <td className="px-4 py-4 text-right font-black text-xl text-primary">{etat.montant_total_net.toLocaleString()} F</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    )}
                 </table>
             </div>
 
-            <div className="flex justify-end gap-4 bg-white p-6 rounded-xl border border-border shadow-sm">
-                {etat.statut === 'PROVISOIRE' ? (
-                    <Button 
-                        onClick={handleValiderEtat} 
-                        className="bg-secondary hover:bg-secondary/90 text-white font-bold h-12 px-8 shadow-md transition-all active:scale-95"
-                    >
-                        <CheckCircle className="mr-2" size={20} /> Valider l'État (Figer les retenues)
+            
+            {/* BARRE D'ACTIONS GLOBALES */}
+            <div className="flex justify-end gap-4 pt-4">
+                {isProvisoire && (
+                    <Button onClick={handleValiderEtat} className="bg-primary hover:bg-primary/90 text-white font-bold px-8 h-12">
+                        <CheckCircle2 className="mr-2" size={20} /> Valider l'État (Verrouiller)
                     </Button>
-                ) : (
-                    <Button 
-                        onClick={handlePaiementMasse} 
-                        className="bg-primary hover:bg-primary/90 text-white font-bold h-12 px-8 shadow-lg transition-all active:scale-95"
-                        disabled={etat.tickets.filter((t:any) => t.mode_paiement === 'ESPECES' && t.statut === 'NON_SOLDE').length === 0}
-                    >
-                        <Banknote className="mr-2" size={20} /> Payer tous les tickets "Espèces"
-                    </Button>
+                )}
+
+                {isValide && (
+                    <>
+                        <Button onClick={handlePayerEspeces} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12">
+                            <Banknote className="mr-2" size={20} /> Payer les Espèces
+                        </Button>
+                        
+                        {/* Détection intelligente du statut Wave */}
+                        {(() => {
+                            const waveTickets = etat.tickets.filter((t: any) => t.mode_paiement === 'WAVE');
+                            if (waveTickets.length === 0) return null;
+
+                            // On cherche si au moins un ticket possède déjà un ID de lot
+                            const lotCree = waveTickets.find((t: any) => t.lot_wave_id !== null);
+
+                            if (!lotCree) {
+                                return (
+                                    <Button type="button" onClick={() => router.post(`/finance/etats/${etat.id}/wave/generer`)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 transition-all">
+                                        <FileSpreadsheet className="mr-2" size={20} /> Générer Lot Wave
+                                    </Button>
+                                );
+                            } else {
+                                return (
+                                    <Button className="bg-green-600 hover:bg-green-700 text-white font-bold h-12 transition-all shadow-md" asChild>
+                                        <a href={`/finance/wave/${lotCree.lot_wave_id}/telecharger`} target="_blank" rel="noopener noreferrer">
+                                            <FileSpreadsheet className="mr-2" size={20} /> Télécharger Excel Wave
+                                        </a>
+                                    </Button>
+                                );
+                            }
+                        })()}
+                    </>
                 )}
             </div>
         </div>
