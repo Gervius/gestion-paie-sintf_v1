@@ -194,6 +194,30 @@ class PointageController extends Controller
         }
     }
 
+    /**
+     * Annule la clôture d'un pointage pour correction immédiate.
+     * Accessible uniquement si les lignes ne sont pas encore liées à un ticket de paie.
+     */
+    public function annulerCloture(Pointage $pointage)
+    {
+        $this->authorize('update', $pointage);
+
+        // Sécurité : On vérifie si une ligne est déjà liée à la Finance
+        $dejaEnPaie = $pointage->lignes()->whereNotNull('ticket_paiement_id')->exists();
+
+        if ($dejaEnPaie) {
+            return back()->withErrors([
+                'error' => 'Impossible de réouvrir cette feuille : elle est déjà intégrée dans un État de Paie généré. ' . 
+                           'Vous devez d\'abord supprimer l\'État de Paie correspondant dans le module Finance.'
+            ]);
+        }
+
+        // On repasse en mode édition terrain
+        $pointage->update(['statut' => 'EDITE_TERRAIN']);
+
+        return back()->with('success', 'La clôture a été annulée. Vous pouvez à nouveau modifier les agents et les quantités.');
+    }
+
     public function searchPersonnel(Request $request)
     {
         $query = $request->get('q');
@@ -201,18 +225,22 @@ class PointageController extends Controller
             return response()->json([]);
         }
 
+        // On récupère l'agent avec son site de travail pour la levée de doute
         return response()->json(
-            Personnel::where('actif', true)
+            Personnel::with('siteTravail:id,nom_site') 
+                ->where('actif', true)
                 ->where(function ($q) use ($query) {
-                    $q->where('nom', 'like', "%{$query}%")
-                      ->orWhere('prenom', 'like', "%{$query}%")
-                      ->orWhere('surnom', 'like', "%{$query}%")
-                      ->orWhere('matricule', 'like', "%{$query}%");
+                    $q->where('nom', 'ilike', "%{$query}%")
+                      ->orWhere('prenom', 'ilike', "%{$query}%")
+                      ->orWhere('surnom', 'ilike', "%{$query}%")
+                      ->orWhere('matricule', 'ilike', "%{$query}%");
                 })
                 ->limit(15)
-                ->get(['id', 'matricule', 'nom', 'prenom'])
+                ->get(['id', 'matricule', 'nom', 'prenom', 'site_travail_id']) 
         );
     }
+
+    
 
     public function destroy(Pointage $pointage)
     {
@@ -228,4 +256,6 @@ class PointageController extends Controller
 
         return back()->with('success', 'La feuille de pointage a été supprimée avec succès.');
     }
+
+    
 }

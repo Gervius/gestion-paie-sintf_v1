@@ -22,6 +22,8 @@ import {
 
 export default function Show() {
     const { etat, can, flash } = usePage<any>().props;
+
+    
     
     const [editingTicket, setEditingTicket] = useState<number | null>(null);
     const [retenueValue, setRetenueValue] = useState<number>(0);
@@ -215,7 +217,7 @@ export default function Show() {
 
                 {isValide && (
                     <>
-                        {/* 🟢 ZONE ESPÈCES (Ergonomie 3 étapes) */}
+                        
                         {can.payer_especes && (() => {
                             const ticketsEspeces = etat.tickets.filter((t: any) => t.mode_paiement === 'ESPECES');
                             if (ticketsEspeces.length === 0) return null;

@@ -328,15 +328,26 @@ class FinanceController extends Controller
     /**
      * Gestion des avances (Index)
      */
-    public function avancesIndex()
+    public function avancesIndex(Request $request)
     {
+        $search = $request->input('search');
+
+        $avances = Avance::with('personnel')
+            ->when($search, function ($query, $search) {
+                $query->whereHas('personnel', function($q) use ($search) {
+                    $q->where('nom', 'ilike', "%{$search}%")
+                      ->orWhere('prenom', 'ilike', "%{$search}%")
+                      ->orWhere('matricule', 'ilike', "%{$search}%");
+                })->orWhere('motif', 'ilike', "%{$search}%");
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(15)
+            ->withQueryString();
+
         return Inertia::render('Finance/Avances/Index', [
-            'avances' => Avance::with('personnel')
-                ->orderBy('created_at', 'desc')
-                ->paginate(10),
-            'personnels' => Personnel::where('actif', true)
-                ->orderBy('nom')
-                ->get(['id', 'matricule', 'nom', 'prenom']),
+            'avances'    => $avances,
+            'personnels' => Personnel::where('actif', true)->orderBy('nom')->get(['id', 'matricule', 'nom', 'prenom']),
+            'filters'    => ['search' => $search]
         ]);
     }
 

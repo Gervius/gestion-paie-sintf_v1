@@ -8,12 +8,23 @@ use Inertia\Inertia;
 
 class LocaliteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('viewAny', Localite::class);
+        $search = $request->input('search');
+
+        $localites = Localite::query()
+            ->when($search, function ($query, $search) {
+                $query->where('nom_localite', 'ilike', "%{$search}%")
+                      ->orWhere('code_localite', 'ilike', "%{$search}%");
+            })
+            ->orderBy('code_localite', 'asc')
+            ->paginate(8)
+            ->withQueryString();
 
         return Inertia::render('Referentiels/Localites/Index', [
-            'localites' => Localite::orderBy('nom_localite')->paginate(20),
+            'localites' => $localites,
+            'filters'   => ['search' => $search]
         ]);
     }
 

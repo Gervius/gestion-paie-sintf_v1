@@ -8,12 +8,23 @@ use Inertia\Inertia;
 
 class SiteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $this->authorize('viewAny', Site::class);
+        
+        $search = $request->input('search');
 
-        return Inertia::render('Referentiels/Sites/Index', [
-            'sites' => Site::orderBy('nom_site')->paginate(20),
+        $sites = Site::query()
+            ->when($search, function ($query, $search) {
+                $query->where('nom_site', 'ilike', "%{$search}%")
+                    ->orWhere('code_site', 'ilike', "%{$search}%");
+            })
+            ->orderBy('code_site', 'asc') 
+            ->paginate(10)                
+            ->withQueryString();          
+
+        return inertia('Referentiels/Sites/Index', [
+            'sites' => $sites,
+            'filters' => ['search' => $search] 
         ]);
     }
 

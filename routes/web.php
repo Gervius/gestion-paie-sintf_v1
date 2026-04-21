@@ -33,6 +33,8 @@ Route::get('/', function () {
 // ------------------------------------------------------------------
 Route::middleware(['auth', 'verified'])->group(function () {
     
+
+    
     
     Route::get('/setup-profile', [UserController::class, 'firstLoginView'])->name('profileFirstLoginView');
     Route::post('/setup-profile', [UserController::class, 'firstLoginUpdate'])->name('profileFirstLoginUpdate');
@@ -95,6 +97,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/pointages', [PointageController::class, 'store'])->name('pointageStore');
         Route::get('/pointages/{pointage}', [PointageController::class, 'show'])->name('pointageShow');
         
+        
         Route::delete('/pointages/{pointage}', [PointageController::class, 'destroy'])->name('pointageDestroy');
 
         // --- Endpoints API Pointages ---
@@ -107,6 +110,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/pointages/{pointage}/submit', [PointageController::class, 'submitQuantities'])->name('apiPointageSubmit');
             Route::get('/personnel/search', [PointageController::class, 'searchPersonnel'])->name('apiPersonnelSearch');
             Route::post('/pointages/{pointage}/valider-preparation', [PointageController::class, 'validerPreparation'])->name('apiPointageValiderPreparation');
+            Route::post('/pointages/{pointage}/annuler-cloture', [PointageController::class, 'annulerCloture'])->name('apiPointageAnnulerCloture');
+            
+            Route::post('/pointages/{pointage}/regul-positive', [RegularisationController::class, 'storePositive'])
+                ->name('apiRegulPositiveStore');
+
+            
+            Route::post('/lignes/{ligne}/regul-negative', [RegularisationController::class, 'storeNegative'])
+                ->name('apiRegulNegativeStore');
         });
 
         // --- Référentiels (Resources) ---
@@ -116,12 +127,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'edit'    => 'referentielsLocalitesEdit', 'update'  => 'referentielsLocalitesUpdate', 'destroy' => 'referentielsLocalitesDestroy',
             ]);
             Route::resource('sites', SiteController::class)->except(['show'])->names([
-                'index'   => 'referentielsSitesIndex', 'create'  => 'referentielsSitesCreate', 'store'   => 'referentielsSitesStore',
-                'edit'    => 'referentielsSitesEdit', 'update'  => 'referentielsSitesUpdate', 'destroy' => 'referentielsSitesDestroy',
+                'index'   => 'referentielsSitesIndex', 
+                'create'  => 'referentielsSitesCreate', 
+                'store'   => 'referentielsSitesStore',
+                'edit'    => 'referentielsSitesEdit', 
+                'update'  => 'referentielsSitesUpdate', 
+                'destroy' => 'referentielsSitesDestroy',
             ]);
             Route::resource('produits', ProduitController::class)->except(['show'])->names([
-                'index'   => 'referentielsProduitsIndex', 'create'  => 'referentielsProduitsCreate', 'store'   => 'referentielsProduitsStore',
-                'edit'    => 'referentielsProduitsEdit', 'update'  => 'referentielsProduitsUpdate', 'destroy' => 'referentielsProduitsDestroy',
+                'index'   => 'referentielsProduitsIndex', 
+                'create'  => 'referentielsProduitsCreate', 
+                'store'   => 'referentielsProduitsStore',
+                'edit'    => 'referentielsProduitsEdit', 
+                'update'  => 'referentielsProduitsUpdate', 'destroy' => 'referentielsProduitsDestroy',
             ]);
             Route::resource('sections', SectionController::class)->except(['show'])->names([
                 'index'   => 'referentielsSectionsIndex', 'create'  => 'referentielsSectionsCreate', 'store'   => 'referentielsSectionsStore',

@@ -17,7 +17,7 @@ class StorePointageRequest extends FormRequest
         return [
             'site_id'       => 'required|exists:sites,id',
             'section_id'    => 'required|exists:sections,id',
-            'date'          => 'required|date|after_or_equal:today',
+            'date'          => 'required|date|before_or_equal:today',
             'type_pointage' => 'required|in:JOURNALIER,RENDEMENT',
         ];
     }

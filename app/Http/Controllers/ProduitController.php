@@ -8,12 +8,23 @@ use Inertia\Inertia;
 
 class ProduitController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('viewAny', Produit::class);
+        $search = $request->input('search');
+
+        $produits = Produit::query()
+            ->when($search, function ($query, $search) {
+                $query->where('nom_produit', 'ilike', "%{$search}%")
+                      ->orWhere('code_produit', 'ilike', "%{$search}%");
+            })
+            ->orderBy('code_produit', 'asc')
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Referentiels/Produits/Index', [
-            'produits' => Produit::orderBy('nom_produit')->paginate(20),
+            'produits' => $produits,
+            'filters'  => ['search' => $search]
         ]);
     }
 

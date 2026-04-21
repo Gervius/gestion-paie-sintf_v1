@@ -13,26 +13,36 @@ use Illuminate\Http\Request;
 class RegularisationController extends Controller
 {
     /**
-     * Oubli de pointage (Régularisation Positive)
+     * Gère l'oubli d'un agent (Régularisation Positive)
+     * Propose le mode "Express" ou "En attente"
      */
     public function storePositive(StoreRegularisationPositiveRequest $request, Pointage $pointage, CreateRegularisationPositiveAction $action)
     {
+        // La validation est gérée automatiquement par StoreRegularisationPositiveRequest
+        
         try {
-            $action->execute(
+            $result = $action->execute(
                 $pointage,
                 $request->validated('personnel_id'),
                 $request->validated('quantite'),
-                $request->validated('motif')
+                $request->validated('motif'),
+                $request->validated('paiement_immediat') ?? false
             );
 
-            return back()->with('success', 'Régularisation positive ajoutée. Elle sera prise en compte lors du prochain état de paie.');
+            if ($result['etat']) {
+                return back()->with('success', "⚡ Paiement Express généré ! L'État de Paie {$result['etat']->reference_etat} est disponible dans le module Finance.");
+            }
+
+            return back()->with('success', "Régularisation enregistrée. L'agent sera payé lors de la prochaine campagne globale.");
+
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => "Erreur technique : " . $e->getMessage()]);
         }
     }
 
     /**
-     * Trop-perçu ou pénalité (Régularisation Négative)
+     * Gère le trop-perçu (Régularisation Négative)
+     * Crée une avance pour récupération manuelle ultérieure
      */
     public function storeNegative(StoreRegularisationNegativeRequest $request, PointageLigne $ligne, CreateRegularisationNegativeAction $action)
     {
@@ -43,9 +53,10 @@ class RegularisationController extends Controller
                 $request->validated('montant_trop_percu')
             );
 
-            return back()->with('success', 'Régularisation négative convertie en retenue (Avance). Elle sera déduite du prochain paiement de l\'agent.');
+            return back()->with('success', "Le trop-perçu a été transformé en Avance. Le caissier pourra procéder à la retenue d'un commun accord avec l'agent.");
+
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => "Erreur technique : " . $e->getMessage()]);
         }
     }
 }

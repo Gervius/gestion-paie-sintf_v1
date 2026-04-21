@@ -10,14 +10,23 @@ use Inertia\Inertia;
 
 class SectionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $this->authorize('viewAny', Section::class);
+        
+        $search = $request->input('search');
 
-        return Inertia::render('Referentiels/Sections/Index', [ 
-            'sections' => Section::with(['produit', 'uniteMesure'])
-                ->orderBy('nom_section')
-                ->paginate(20),
+        $sections = Section::query()
+            ->when($search, function ($query, $search) {
+                $query->where('nom_section', 'ilike', "%{$search}%")
+                    ->orWhere('code_section', 'ilike', "%{$search}%");
+            })
+            ->orderBy('code_section', 'asc') 
+            ->paginate(10)                
+            ->withQueryString();          
+
+        return inertia('Referentiels/Sections/Index', [
+            'sections' => $sections,
+            'filters' => ['search' => $search] 
         ]);
     }
 
@@ -25,7 +34,7 @@ class SectionController extends Controller
     {
         $this->authorize('create', Section::class);
 
-        return Inertia::render('Referentiels/Sections/Create', [ // ✅ Correction du chemin
+        return Inertia::render('Referentiels/Sections/Create', [ 
             'produits'      => Produit::orderBy('nom_produit')->get(),
             'unitesMesure'  => UniteMesure::orderBy('libelle')->get(),
         ]);
@@ -46,7 +55,7 @@ class SectionController extends Controller
 
         Section::create($validated);
 
-        return redirect()->route('sections.index')
+        return redirect()->route('referentielsSectionsIndex')
             ->with('success', 'Section créée.');
     }
 
