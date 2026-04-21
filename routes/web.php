@@ -16,6 +16,7 @@ use App\Http\Controllers\SocieteController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\ConsolidationController;
 
 // ------------------------------------------------------------------
 // ROUTE PUBLIQUE (Redirection automatique)
@@ -71,8 +72,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/finance/etats', [FinanceController::class, 'etatsIndex'])->name('financeEtatsIndex');
         Route::get('/finance/etats/create', [FinanceController::class, 'etatCreate'])->name('financeEtatsCreate');
         Route::post('/finance/etats', [FinanceController::class, 'etatStore'])->name('financeEtatsStore');
+        Route::post('/finance/etats/campagne', [FinanceController::class, 'etatStoreCampagne'])->name('financeEtatsCampagne');
         Route::get('/finance/etats/{etat}', [FinanceController::class, 'etatShow'])->name('financeEtatsShow');
         Route::post('/finance/etats/{etat}/valider', [FinanceController::class, 'etatValider'])->name('financeEtatsValider');
+        Route::get('/finance/etats/{etat}/bordereau-caisse', [FinanceController::class, 'telechargerBordereauCaisse'])->name('financeEtatsBordereauCaisse');
         Route::delete('/finance/etats/{etat}', [FinanceController::class, 'etatDestroy'])->name('financeEtatsDestroy');
 
         // --- Paiement & Export ---
@@ -81,7 +84,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/finance/etats/{etat}/payer-especes-masse', [FinanceController::class, 'etatPayerMassEspeces'])->name('financeEtatsPayerMassEspeces');
         Route::post('/finance/etats/{etat}/wave/generer', [FinanceController::class, 'genererLotWave'])->name('financeWaveGenerer');
         Route::get('/finance/wave/{lot}/telecharger', [FinanceController::class, 'telechargerLotWave'])->name('financeWaveTelecharger');
+        Route::post('/finance/wave/{lot}/valider', [FinanceController::class, 'validerLotWave'])->name('financeWaveValider');
         Route::post('/finance/wave/generer-global', [FinanceController::class, 'genererLotWaveGlobal'])->name('financeWaveGenererGlobal');
+        
         
 
         // --- Gestion des pointages ---
@@ -148,6 +153,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'index' => 'permissionsIndex', 'create' => 'permissionsCreate', 'store' => 'permissionsStore', 
             'edit' => 'permissionsEdit', 'update' => 'permissionsUpdate', 'destroy' => 'permissionsDestroy'
         ]);
+
+        Route::get('/finance/consolidation', [ConsolidationController::class, 'index'])->name('financeConsolidationIndex');
+        Route::get('/finance/consolidation/bordereau-especes', [ConsolidationController::class, 'telechargerBordereauEspeces'])->name('financeConsolidationBordereauEspeces');
+        Route::post('/finance/payer-tout-especes', [FinanceController::class, 'payerToutEspecesUsine'])->name('financePayerToutEspeces');
 
     }); 
 }); 

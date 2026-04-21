@@ -2,13 +2,26 @@ import { usePage, router, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import { 
     ArrowLeft, CheckCircle2, AlertCircle, Wallet, 
-    Banknote, Edit3, Save, X, FileSpreadsheet, Trash2 
+    Banknote, Edit3, Save, X, FileSpreadsheet, Trash2,
+    FileText 
 } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 
+// 💡 IMPORT DE TOUTES LES ROUTES DYNAMIQUES
+import { 
+    financeEtatsIndex, 
+    financeEtatsValider, 
+    financeEtatsDestroy, 
+    financeEtatsPayerMassEspeces, 
+    financeTicketsUpdateRetenue, 
+    financeEtatsBordereauCaisse,
+    financeWaveGenerer,
+    financeWaveTelecharger,
+    financeWaveValider
+} from '@/routes';
+
 export default function Show() {
-    const { etat, flash } = usePage<any>().props;
+    const { etat, can, flash } = usePage<any>().props;
     
     const [editingTicket, setEditingTicket] = useState<number | null>(null);
     const [retenueValue, setRetenueValue] = useState<number>(0);
@@ -16,25 +29,23 @@ export default function Show() {
     const isProvisoire = etat.statut === 'PROVISOIRE';
     const isValide = etat.statut === 'VALIDE';
 
-    
     const handleValiderEtat = () => {
         if (!confirm('Êtes-vous sûr de valider cet état ? Les montants seront verrouillés pour le paiement.')) return;
-        router.post(`/finance/etats/${etat.id}/valider`, {}, { preserveScroll: true });
-
+        router.post(financeEtatsValider.url({ etat: etat.id }), {}, { preserveScroll: true });
     };
 
     const handleDeleteEtat = () => {
         if (!confirm('Êtes-vous sûr de vouloir supprimer cet état ? Tous les pointages liés redeviendront "En attente" pour une prochaine génération.')) return;
-        router.delete(`/finance/etats/${etat.id}`);
+        router.delete(financeEtatsDestroy.url({ etat: etat.id }));
     };
 
     const handlePayerEspeces = () => {
-        if (!confirm('Confirmez-vous le paiement en masse de tous les tickets ESPÈCES de cet état ?')) return;
-        router.post(`/finance/etats/${etat.id}/payer-especes-masse`, {}, { preserveScroll: true });
+        if (!confirm('Confirmez-vous le décaissement de tous les tickets ESPÈCES ? Cette action va solder les tickets et déduire les avances.')) return;
+        router.post(financeEtatsPayerMassEspeces.url({ etat: etat.id }), {}, { preserveScroll: true });
     };
 
     const handleSaveRetenue = (ticketId: number) => {
-        router.post(`/finance/tickets/${ticketId}/retenue`, { montant_retenue: retenueValue }, {
+        router.post(financeTicketsUpdateRetenue.url({ ticket: ticketId }), { montant_retenue: retenueValue }, {
             preserveScroll: true,
             onSuccess: () => setEditingTicket(null),
             onError: (err) => alert(err.error || "Erreur lors de l'application de la retenue.")
@@ -51,7 +62,7 @@ export default function Show() {
         <div className="p-6 space-y-6 bg-background">
             <Head title={`État de Paie - ${etat.reference_etat}`} />
 
-            <Link href="/finance/etats" className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors">
+            <Link href={financeEtatsIndex.url()} className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors">
                 <ArrowLeft size={16} /> Retour aux états de paie
             </Link>
 
@@ -84,8 +95,7 @@ export default function Show() {
                             STATUT : {etat.statut}
                         </span>
                         
-                        
-                        {isProvisoire && (
+                        {isProvisoire && can.valider_etat && (
                             <Button onClick={handleDeleteEtat} variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 h-8 mt-1">
                                 <Trash2 size={14} className="mr-1.5" /> Supprimer l'état
                             </Button>
@@ -193,10 +203,11 @@ export default function Show() {
                 </table>
             </div>
 
-            
             {/* BARRE D'ACTIONS GLOBALES */}
             <div className="flex justify-end gap-4 pt-4">
-                {isProvisoire && (
+                
+                {/* Bouton de validation globale (Chef de section) */}
+                {isProvisoire && can.valider_etat && (
                     <Button onClick={handleValiderEtat} className="bg-primary hover:bg-primary/90 text-white font-bold px-8 h-12">
                         <CheckCircle2 className="mr-2" size={20} /> Valider l'État (Verrouiller)
                     </Button>
@@ -204,33 +215,79 @@ export default function Show() {
 
                 {isValide && (
                     <>
-                        <Button onClick={handlePayerEspeces} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12">
-                            <Banknote className="mr-2" size={20} /> Payer les Espèces
-                        </Button>
+                        {/* 🟢 ZONE ESPÈCES (Ergonomie 3 étapes) */}
+                        {can.payer_especes && (() => {
+                            const ticketsEspeces = etat.tickets.filter((t: any) => t.mode_paiement === 'ESPECES');
+                            if (ticketsEspeces.length === 0) return null;
+
+                            const isEspecesSolde = ticketsEspeces.every((t: any) => t.statut === 'SOLDE');
+
+                            if (!isEspecesSolde) {
+                                return (
+                                    <div className="flex gap-2 p-1 bg-emerald-50 border border-emerald-200 rounded-xl items-center pr-2">
+                                        <Button className="bg-white text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold h-10 transition-all shadow-sm" asChild>
+                                            <a href={financeEtatsBordereauCaisse.url({ etat: etat.id })} target="_blank" rel="noopener noreferrer">
+                                                <FileText className="mr-2" size={18} /> Imprimer Bordereau
+                                            </a>
+                                        </Button>
+                                        <Button onClick={handlePayerEspeces} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 transition-all shadow-md">
+                                            <Banknote className="mr-2" size={18} /> Confirmer Décaissement
+                                        </Button>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="flex items-center gap-2 px-4 h-12 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 font-bold text-sm">
+                                    <CheckCircle2 size={18} className="text-green-500" /> Paiements Espèces validés
+                                </div>
+                            );
+                        })()}
                         
-                        {/* Détection intelligente du statut Wave */}
-                        {(() => {
+                        {/* 🔵 ZONE WAVE (Ergonomie 3 étapes) */}
+                        {can.gerer_wave && (() => {
                             const waveTickets = etat.tickets.filter((t: any) => t.mode_paiement === 'WAVE');
                             if (waveTickets.length === 0) return null;
 
-                            // On cherche si au moins un ticket possède déjà un ID de lot
                             const lotCree = waveTickets.find((t: any) => t.lot_wave_id !== null);
 
                             if (!lotCree) {
                                 return (
-                                    <Button type="button" onClick={() => router.post(`/finance/etats/${etat.id}/wave/generer`)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 transition-all">
+                                    <Button type="button" onClick={() => router.post(financeWaveGenerer.url({ etat: etat.id }))} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 transition-all">
                                         <FileSpreadsheet className="mr-2" size={20} /> Générer Lot Wave
                                     </Button>
                                 );
-                            } else {
+                            } 
+                            
+                            const isWaveSolde = waveTickets.every((t: any) => t.statut === 'SOLDE');
+
+                            if (!isWaveSolde) {
                                 return (
-                                    <Button className="bg-green-600 hover:bg-green-700 text-white font-bold h-12 transition-all shadow-md" asChild>
-                                        <a href={`/finance/wave/${lotCree.lot_wave_id}/telecharger`} target="_blank" rel="noopener noreferrer">
-                                            <FileSpreadsheet className="mr-2" size={20} /> Télécharger Excel Wave
-                                        </a>
-                                    </Button>
+                                    <div className="flex gap-2 p-1 bg-indigo-50 border border-indigo-200 rounded-xl items-center pr-2">
+                                        <Button className="bg-white text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold h-10 transition-all shadow-sm" asChild>
+                                            <a href={financeWaveTelecharger.url({ lot: lotCree.lot_wave_id })} target="_blank" rel="noopener noreferrer">
+                                                <FileSpreadsheet className="mr-2" size={18} /> Télécharger Excel
+                                            </a>
+                                        </Button>
+                                        <Button 
+                                            onClick={() => {
+                                                if (confirm('Avez-vous bien effectué le transfert sur le portail Wave ? Cette action va solder les tickets et déduire les avances.')) {
+                                                    router.post(financeWaveValider.url({ lot: lotCree.lot_wave_id }), {}, { preserveScroll: true });
+                                                }
+                                            }} 
+                                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 transition-all shadow-md"
+                                        >
+                                            <CheckCircle2 className="mr-2" size={18} /> Confirmer Transfert
+                                        </Button>
+                                    </div>
                                 );
                             }
+
+                            return (
+                                <div className="flex items-center gap-2 px-4 h-12 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 font-bold text-sm">
+                                    <CheckCircle2 size={18} className="text-green-500" /> Transferts Wave validés
+                                </div>
+                            );
                         })()}
                     </>
                 )}

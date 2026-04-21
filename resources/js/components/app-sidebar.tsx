@@ -15,6 +15,7 @@ import {
     Shield,
     Landmark,
     Settings,
+    Wallet,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -73,13 +74,15 @@ export function AppSidebar() {
             items: [
                 { title: 'Suivi des Pointages', href: safeRoute('pointageIndex', '/pointages'), icon: ClipboardList },
                 { title: 'Saisie Journalière', href: safeRoute('pointageCreate', '/pointages/create'), icon: Calculator },
+                
             ],
         },
         {
             label: 'Finances & Paie',
             items: [
-                { title: 'Avances sur Salaire', href: safeRoute('financeAvancesIndex', '/finance/avances'), icon: Coins, permission: 'voir_ticket_valide' },
+                { title: 'Avances sur Salaire', href: safeRoute('financeAvancesIndex', '/finance/avances'), icon: Coins, permission: 'gerer_avances' },
                 { title: 'États de Paiement', href: safeRoute('financeEtatsIndex', '/finance/etats'), icon: Receipt, permission: 'voir_ticket_valide' },
+                { title: 'Consolidation Globale', href: safeRoute('financeConsolidationIndex', '/finance/consolidation'), icon: Wallet, permission: 'voir_consolidation_paie' },
             ],
         },
         {

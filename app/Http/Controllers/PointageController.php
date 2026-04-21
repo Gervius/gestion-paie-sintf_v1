@@ -22,22 +22,55 @@ class PointageController extends Controller
     {
         $this->authorize('viewAny', Pointage::class);
 
+        
         $search = $request->input('search');
+        $status = $request->input('status', 'EN_COURS'); // "EN_COURS" par défaut (Inbox Zero)
+        $siteId = $request->input('site_id');
+        $sectionId = $request->input('section_id');
+        $dateFiltre = $request->input('date');
+
+        
+        $query = Pointage::with(['site', 'section']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('site', fn($sq) => $sq->where('nom_site', 'like', "%{$search}%"))
+                  ->orWhereHas('section', fn($sq) => $sq->where('nom_section', 'like', "%{$search}%"));
+            });
+        }
+
+        // Filtre Statut intelligent
+        if ($status === 'EN_COURS') {
+            $query->whereIn('statut', ['PREPARATION', 'EDITE_TERRAIN']);
+        } elseif ($status === 'CLOTURE') {
+            $query->where('statut', 'CLOTURE');
+        } 
+
+        // Filtres spécifiques
+        if ($siteId) {
+            $query->where('site_id', $siteId);
+        }
+        if ($sectionId) {
+            $query->where('section_id', $sectionId);
+        }
+        if ($dateFiltre) {
+            $query->whereDate('date_pointage', $dateFiltre);
+        }
 
         return Inertia::render('Pointage/Index', [
-            'pointages' => Pointage::with(['site', 'section'])
-                ->when($search, function ($query, $search) {
-                    $query->whereHas('site', function ($q) use ($search) {
-                        $q->where('nom_site', 'like', "%{$search}%");
-                    })->orWhereHas('section', function ($q) use ($search) {
-                        $q->where('nom_section', 'like', "%{$search}%");
-                    });
-                })
-                ->orderBy('date_pointage', 'desc')
+            'pointages' => $query->orderBy('date_pointage', 'desc')
                 ->orderBy('created_at', 'desc')
-                ->paginate(10) // ✅ Limite à 10 pour l'ergonomie
+                ->paginate(15) 
                 ->withQueryString(),
-            'filters' => $request->only(['search']),
+            'sites'    => Site::orderBy('nom_site')->get(['id', 'nom_site']),
+            'sections' => Section::orderBy('nom_section')->get(['id', 'nom_section']),
+            'filters'  => [
+                'search'     => $search,
+                'status'     => $status,
+                'site_id'    => $siteId ?? '',
+                'section_id' => $sectionId ?? '',
+                'date'       => $dateFiltre ?? '',
+            ],
         ]);
     }
 

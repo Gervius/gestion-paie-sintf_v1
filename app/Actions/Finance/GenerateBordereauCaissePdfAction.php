@@ -13,7 +13,6 @@ class GenerateBordereauCaissePdfAction
         
         $etat->load(['section.produit']);
 
-        
         $tickets = $etat->tickets()
             ->where('mode_paiement', 'ESPECES')
             ->with('personnel')

@@ -28,4 +28,10 @@ class PointagePolicy
         return $pointage->statut === 'EDITE_TERRAIN'
             && ($user->can('cloturer_pointage') || $user->can('*'));
     }
+
+    public function delete(User $user, Pointage $pointage): bool
+    {
+        return $pointage->statut === 'PREPARATION' 
+            && ($user->can('supprimer_pointage') || $user->can('*'));
+    }
 }
