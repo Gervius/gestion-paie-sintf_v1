@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use App\Observers\PointageObserver;
+
 
 #[ScopedBy(SiteScope::class)]
 #[ObservedBy(PointageObserver::class)]

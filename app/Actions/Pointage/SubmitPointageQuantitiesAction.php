@@ -12,20 +12,48 @@ class SubmitPointageQuantitiesAction
     {
         DB::transaction(function () use ($pointage, $quantities) {
             
-            $taux = $pointage->taux_applique;
+            // 1. VERROUILLAGE ANTI-DOUBLE CLIC (Row Level Locking)
+            $lockedPointage = Pointage::where('id', $pointage->id)->lockForUpdate()->first();
 
+            if (!in_array($lockedPointage->statut, ['PREPARATION', 'EDITE_TERRAIN'])) {
+                throw new \Exception("Action impossible : Ce pointage est déjà clôturé ou en cours de traitement.");
+            }
+
+            $taux = $lockedPointage->taux_applique;
+            $lignesTraiteesIds = [];
+
+            // 2. MISE À JOUR DES QUANTITÉS SAISIES
             foreach ($quantities as $item) {
+                $quantite = (float) $item['quantite'];
+                $lignesTraiteesIds[] = $item['ligne_id'];
+
+                // Règle Métier : Si l'agent a produit > 0, il est EN_ATTENTE de paie. Sinon, il est marqué ABSENT.
+                $nouveauStatut = $quantite > 0 ? 'EN_ATTENTE' : 'ABSENT';
+
                 PointageLigne::where('id', $item['ligne_id'])
-                    ->where('pointage_id', $pointage->id)
+                    ->where('pointage_id', $lockedPointage->id)
                     ->update([
-                        'quantite'       => $item['quantite'],
-                        'montant_brut'   => $item['quantite'] * $taux,
-                        'moyen_paiement' => $item['moyen_paiement'] ?? 'ESPECES', // 💡 C'EST CETTE LIGNE QUI MANQUAIT !
-                        'statut_ligne'   => 'EN_ATTENTE'
+                        'quantite'       => $quantite,
+                        'montant_brut'   => $quantite * $taux,
+                        'moyen_paiement' => $item['moyen_paiement'] ?? 'ESPECES',
+                        'statut_ligne'   => $nouveauStatut
                     ]);
             }
 
-            $pointage->update([
+            // 3. NETTOYAGE DES LIGNES ORPHELINES (Sécurité)
+            // Tous les agents présents sur la feuille mais qui n'ont pas été envoyés par le Frontend sont passés en ABSENT
+            if (!empty($lignesTraiteesIds)) {
+                PointageLigne::where('pointage_id', $lockedPointage->id)
+                    ->whereNotIn('id', $lignesTraiteesIds)
+                    ->update([
+                        'quantite'     => 0,
+                        'montant_brut' => 0,
+                        'statut_ligne' => 'ABSENT'
+                    ]);
+            }
+
+            // 4. CLÔTURE DÉFINITIVE
+            $lockedPointage->update([
                 'statut' => 'CLOTURE'
             ]);
             

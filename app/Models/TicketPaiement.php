@@ -14,10 +14,9 @@ class TicketPaiement extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'personnel_id', 'etat_paiement_id', 'lot_wave_id', 'date_generation',
+        'personnel_id', 'etat_paiement_id', 'lot_wave_id', 'date_generation', 'quantite_totale',
         'montant_brut_cumule', 'montant_deduit_manuel', 'montant_net',
-        'mode_paiement', 'reference_paiement', 'statut', 
-        'avance_id', 
+        'mode_paiement', 'reference_paiement', 'statut', 'avance_id', 
     ];
 
     protected $casts = ['date_generation' => 'date'];

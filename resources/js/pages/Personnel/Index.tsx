@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { PlusIcon, UploadIcon, Search, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
+import { PlusIcon, UploadIcon, Search, CheckCircle2, Pencil, Trash2, Download } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
@@ -125,23 +125,37 @@ export default function Index({ personnels }: { personnels: PaginatedData<Person
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-4 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Link
-                                                href={`/personnel/${p.id}/edit`}
-                                                className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                                                title="Modifier l'employé"
-                                            >
-                                                <Pencil size={18} />
-                                            </Link>
-                                            <button
-                                                onClick={() => handleDelete(p.id)}
-                                                disabled={deleting === p.id}
-                                                className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
-                                                title="Supprimer l'employé"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        </div>
+                                    <div className="flex justify-end gap-2">
+                                        {/* Modifier */}
+                                        <Link
+                                        href={`/personnel/${p.id}/edit`}
+                                        className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                        title="Modifier l'employé"
+                                        >
+                                        <Pencil size={18} />
+                                        </Link>
+
+                                        {/* Télécharger Badge */}
+                                        <a
+                                            href={`/personnel/${p.id}/badge`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center"
+                                            title="Télécharger le badge"
+                                        >
+                                            <Download size={18} />
+                                        </a>
+
+                                        {/* Supprimer */}
+                                        <button
+                                        onClick={() => handleDelete(p.id)}
+                                        disabled={deleting === p.id}
+                                        className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                                        title="Supprimer l'employé"
+                                        >
+                                        <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                     </td>
                                 </tr>
                             ))

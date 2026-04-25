@@ -64,9 +64,8 @@ export function AppSidebar() {
         {
             label: 'Ressources Humaines',
             items: [
-                { title: 'Liste du personnel', href: safeRoute('personnelIndex', '/personnel'), icon: Users },
-                { title: 'Nouveau recrutement', href: safeRoute('personnelCreate', '/personnel/create'), icon: UserPlus },
-                { title: 'Importation de masse', href: safeRoute('personnelImportIndex', '/personnel/import'), icon: Database, permission: 'importer_personnel' },
+                { title: 'Liste du personnel', href: safeRoute('personnelIndex', '/personnel'), icon: Users, permission: 'gerer_utilisateurs' },
+                { title: 'Nouveau recrutement', href: safeRoute('personnelCreate', '/personnel/create'), icon: UserPlus, permission: 'gerer_utilisateurs' },
             ],
         },
         {
@@ -82,7 +81,7 @@ export function AppSidebar() {
             items: [
                 { title: 'Avances sur Salaire', href: safeRoute('financeAvancesIndex', '/finance/avances'), icon: Coins, permission: 'gerer_avances' },
                 { title: 'États de Paiement', href: safeRoute('financeEtatsIndex', '/finance/etats'), icon: Receipt, permission: 'voir_ticket_valide' },
-                { title: 'Consolidation Globale', href: safeRoute('financeConsolidationIndex', '/finance/consolidation'), icon: Wallet, permission: 'voir_consolidation_paie' },
+                
             ],
         },
         {

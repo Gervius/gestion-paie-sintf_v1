@@ -47,11 +47,13 @@ class User extends Authenticatable
     {
         
         if ($this->hasRole('Super Admin')) {
-            return \App\Models\Site::pluck('id')->toArray();
+            // C'est une bonne pratique de toujours préciser la table
+            return \App\Models\Site::pluck('sites.id')->toArray();
         }
 
         
-        $ids = $this->sites()->pluck('id')->toArray();
+        $ids = $this->sites()->pluck('sites.id')->toArray();
+        
         if ($this->site_id) {
             $ids[] = $this->site_id;
         }

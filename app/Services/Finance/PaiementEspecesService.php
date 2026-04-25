@@ -67,4 +67,24 @@ class PaiementEspecesService
         }
         return $count;
     }
+
+    /**
+     * Traite un paiement en espèces massif pour une liste de tickets.
+     * * @param array $ticketIds Liste des IDs des tickets à payer
+     * @param int $userId ID de l'utilisateur qui valide le paiement
+     * @return int Le nombre de tickets mis à jour
+     */
+    public function traiterPaiementMassif(array $ticketIds, int $userId): int
+    {
+        return DB::transaction(function () use ($ticketIds, $userId) {
+            // On s'assure de ne payer que les tickets en espèces qui ne sont pas encore soldés
+            return TicketPaiement::whereIn('id', $ticketIds)
+                ->where('mode_paiement', 'ESPECES')
+                ->where('statut', 'NON_SOLDE')
+                ->update([
+                    'statut' => 'SOLDE',
+                    'date_paiement' => now(), // Tu peux ajouter 'paye_par_id' => $userId si tu as la colonne
+                ]);
+        });
+    }
 }

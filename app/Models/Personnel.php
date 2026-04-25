@@ -13,21 +13,24 @@ class Personnel extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = [
+   protected $fillable = [
         'matricule', 'nom', 'prenom', 'surnom', 'sexe', 'date_naissance',
-        'lieu_naissance', 'num_acte_naissance', 'num_cnib', 'date_cnib',
-        'lieu_cnib', 'num_cnss', 'date_cnss', 'telephone', 'tel_compte_wave',
-        'est_marie', 'nb_charge', 'niveau_etude', 'classification',
+        'lieu_naissance', 'num_acte_naissance', 'num_cnib', 'sans_cnib', 
+        'date_cnib', 'lieu_cnib', 'num_cnss', 'date_cnss', 
+        'telephone', 'a_telephone_propre', 'telephone_sc', 'lien_telephone_sc', 
+        'tel_compte_wave', 'est_marie', 'nb_charge', 'niveau_etude', 'classification',
         'localite_domicile_id', 'site_travail_id', 'section_defaut_id',
         'actif', 'preference_paiement', 'import_batch',
     ];
 
     protected $casts = [
-        'date_naissance' => 'date',
-        'date_cnib'      => 'date',
-        'date_cnss'      => 'date',
-        'est_marie'      => 'boolean',
-        'actif'          => 'boolean',
+        'date_naissance'     => 'date',
+        'date_cnib'          => 'date',
+        'date_cnss'          => 'date',
+        'est_marie'          => 'boolean',
+        'actif'              => 'boolean',
+        'sans_cnib'          => 'boolean', 
+        'a_telephone_propre' => 'boolean', 
     ];
 
     public function localiteDomicile()

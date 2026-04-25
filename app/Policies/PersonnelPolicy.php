@@ -16,8 +16,9 @@ class PersonnelPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('importer_personnel') || $user->can('*');
+        return $user->can('create_personnel') || $user->can('*');
     }
+
 
     public function update(User $user, Personnel $personnel): bool
     {

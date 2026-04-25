@@ -9,12 +9,13 @@ class EtatPaiement extends Model
     use HasFactory;
 
     protected $fillable = [
-        'reference_etat', 'section_id', 'date_etat', 'statut',
+        'reference_etat', 'section_id', 'date_debut', 'date_fin', 'type_pointage', 'statut',
         'montant_total_brut', 'montant_total_net', 'valide_par_id', 'date_validation',
     ];
 
     protected $casts = [
-        'date_etat' => 'date',
+        'date_debut' => 'date',
+        'date_fin' => 'date',
         'date_validation' => 'datetime',
     ];
 

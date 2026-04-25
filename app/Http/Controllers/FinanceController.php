@@ -8,407 +8,284 @@ use App\Models\Section;
 use App\Models\Avance;
 use App\Models\Personnel;
 use App\Models\LotPaiementWave;
-use App\Models\PointageLigne;
-use App\Models\Pointage;
 use App\Services\Finance\EtatPaiementGenerationService;
 use App\Services\Finance\PaiementEspecesService;
 use App\Services\Finance\WaveExportService;
 use App\Services\Finance\AvanceService;
 use App\Actions\Finance\GenerateBordereauCaissePdfAction;
 use App\Exports\WaveBulkExport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
-use Maatwebsite\Excel\Facades\Excel;
 
 class FinanceController extends Controller
 {
     /**
-     * Liste des états de paiement (Index) + Préparation de la Campagne
+     * Index des États de Paiement
      */
     public function etatsIndex(Request $request)
     {
-        // 1. Récupération des filtres depuis l'URL (PROVISOIRE par défaut pour l'Inbox Zero)
-        $statusFiltre = $request->input('status', 'PROVISOIRE'); 
-        $sectionFiltre = $request->input('section_id');
-
-        // 2. Construction de la requête avec les filtres
-        $query = EtatPaiement::with('section');
-
-        if ($statusFiltre !== 'TOUS') {
-            $query->where('statut', $statusFiltre);
-        }
-        if ($sectionFiltre) {
-            $query->where('section_id', $sectionFiltre);
+        // Permission : generer_etat_paiement ou voir_consolidation_paie
+        if (!$request->user()->can('generer_etat_paiement') && !$request->user()->can('*')) {
+            abort(403, "Vous n'avez pas la permission de consulter les états.");
         }
 
-        // 3. PERFORMANCE : On cherche la date du plus ancien pointage CLOTURE en attente
-        $plusAncienneDate = Pointage::where('statut', 'CLOTURE')
-            ->whereHas('lignes', function ($q) {
-                $q->where('statut_ligne', 'EN_ATTENTE')->whereNull('ticket_paiement_id');
+        $status = $request->input('status', 'PROVISOIRE');
+        $search = $request->input('search');
+
+        $query = EtatPaiement::with('section')
+            ->when($status !== 'TOUS', fn($q) => $q->where('statut', $status))
+            ->when($search, function ($q) use ($search) {
+                $q->where('reference_etat', 'ilike', "%{$search}%")
+                  ->orWhereHas('section', fn($sq) => $sq->where('nom_section', 'ilike', "%{$search}%"));
             })
-            ->min('date_pointage');
+            ->orderBy('created_at', 'desc');
 
         return Inertia::render('Finance/Etats/Index', [
-            'etats' => $query->orderBy('date_etat', 'desc')
-                ->orderBy('created_at', 'desc')
-                ->paginate(10)
-                ->withQueryString(),
-            'sections' => Section::orderBy('nom_section')->get(),
-            'date_debut_suggeree' => $plusAncienneDate ?? now()->toDateString(), 
-            // On renvoie les filtres au front pour garder l'état des boutons
-            'filters' => [
-                'status' => $statusFiltre,
-                'section_id' => $sectionFiltre,
-            ]
+            'etats' => $query->paginate(15)->withQueryString(),
+            'sections' => Section::orderBy('nom_section')->get(['id', 'nom_section']),
+            'date_debut_suggeree' => now()->startOfMonth()->toDateString(),
+            'filters' => $request->only(['status', 'search'])
         ]);
     }
 
     /**
-     *  GÉNÉRATION DE MASSE HAUTE PERFORMANCE (La Campagne)
+     * Génération de la Campagne de Masse (Multi-Sections)
      */
     public function etatStoreCampagne(Request $request, EtatPaiementGenerationService $service)
     {
-        if (!$request->user()->can('generer_etat_paiement') && !$request->user()->can('*')) abort(403);
-        $validated = $request->validate([
-            'date_debut' => 'required|date',
-            'date_fin'   => 'required|date|after_or_equal:date_debut',
-            'section_id' => 'nullable|exists:sections,id' // Optionnel !
-        ]);
-
-        try {
-            $dateDebut = Carbon::parse($validated['date_debut']);
-            $dateFin = Carbon::parse($validated['date_fin']);
-
-            // 1. CIBLAGE SQL : Quelles sections ont vraiment des pointages en attente ?
-            $querySections = Pointage::where('statut', 'CLOTURE')
-                ->whereBetween('date_pointage', [$dateDebut->toDateString(), $dateFin->toDateString()])
-                ->whereHas('lignes', function ($q) {
-                    $q->where('statut_ligne', 'EN_ATTENTE')->whereNull('ticket_paiement_id');
-                });
-
-            // Si l'utilisateur a choisi une seule section, on filtre, sinon on prend tout
-            if (!empty($validated['section_id'])) {
-                $querySections->where('section_id', $validated['section_id']);
-            }
-
-            // On récupère uniquement les IDs des sections concernées (ultra léger en mémoire)
-            $sectionIds = $querySections->distinct()->pluck('section_id');
-
-            if ($sectionIds->isEmpty()) {
-                return back()->withErrors(['error' => 'Aucun pointage clôturé et non traité n\'a été trouvé pour cette période.']);
-            }
-
-            $countGeneres = 0;
-            
-            // 2. EXÉCUTION : On ne boucle QUE sur les sections utiles
-            foreach ($sectionIds as $id) {
-                $service->genererIntervalle((int) $id, $dateDebut, $dateFin);
-                $countGeneres++;
-            }
-
-            return back()->with('success', "Succès : {$countGeneres} État(s) de paiement généré(s) avec succès !");
-            
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Erreur lors de la génération : ' . $e->getMessage()]);
+        if (!$request->user()->can('generer_etat_paiement') && !$request->user()->can('*')) {
+            abort(403);
         }
-    }
 
-    /**
-     * Génération d'un nouvel état périodique (Cumul)
-     */
-    public function etatStore(Request $request, EtatPaiementGenerationService $service)
-    {
-
-        if (!$request->user()->can('generer_etat_paiement') && !$request->user()->can('*')) abort(403);
         $validated = $request->validate([
-            'section_id' => 'required|exists:sections,id',
-            'date_debut' => 'required|date',
-            'date_fin'   => 'required|date|after_or_equal:date_debut',
+            'section_ids'   => 'required|array|min:1',
+            'section_ids.*' => 'exists:sections,id',
+            'date_debut'    => 'required|date',
+            'date_fin'      => 'required|date|after_or_equal:date_debut',
         ]);
 
         try {
-            $etat = $service->genererIntervalle(
-                (int) $validated['section_id'],
-                Carbon::parse($validated['date_debut']),
-                Carbon::parse($validated['date_fin'])
+            $count = $service->genererIntervalleMulti(
+                $validated['section_ids'],
+                Carbon::parse($validated['date_debut'])->startOfDay(),
+                Carbon::parse($validated['date_fin'])->endOfDay()
             );
 
-            return redirect()->route('financeEtatsShow', $etat->id)
-                ->with('success', 'État périodique généré. Procédez maintenant à l\'ajustement des retenues.');
+            if ($count === 0) {
+                return back()->withErrors(['error' => "Aucun pointage clôturé trouvé."]);
+            }
+
+            return back()->with('success', "Succès : $count états consolidés générés.");
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
     /**
-     * Détail d'un état (Show) avec tickets, avances et permissions (Front)
+     * Détail d'un État
      */
-    public function etatShow(Request $request, EtatPaiement $etat)
+    public function etatShow(EtatPaiement $etat)
     {
+        // L'EtatPaiement est déjà protégé par le SiteScope s'il est activé
+        // On vérifie si l'utilisateur peut voir les tickets (Caissier, RH, Admin)
+        if (!auth()->user()->can('voir_ticket_valide') && !auth()->user()->can('generer_etat_paiement') && !auth()->user()->can('*')) {
+            abort(403);
+        }
+
+        $etat->load(['section', 'tickets.personnel' => function($q) {
+            $q->withSum(['avances as total_avances_actives' => function($sq) {
+                $sq->where('statut', 'ACTIVE');
+            }], 'solde_restant');
+        }]);
+        
         return Inertia::render('Finance/Etats/Show', [
-            'etat' => $etat->load(['section', 'tickets.personnel', 'tickets.avance']),
-            
-            // 💡 Envoi des permissions au Frontend pour masquer/afficher les boutons
+            'etat' => $etat,
             'can' => [
-                'valider_etat'  => $request->user()->can('valider_etat_paiement') || $request->user()->can('*'),
-                'payer_especes' => $request->user()->can('payer_especes') || $request->user()->can('*'),
-                'gerer_wave'    => $request->user()->can('generer_lot_wave') || $request->user()->can('*'),
+                'valider' => auth()->user()->can('valider_etat_paiement') || auth()->user()->can('*'),
             ]
         ]);
     }
 
     /**
-     * Ajustement manuel de la retenue (Netting)
-     */
-    public function updateRetenue(Request $request, TicketPaiement $ticket)
-    {
-        if (!$ticket->avance_id) {
-            return back()->withErrors(['error' => 'Action impossible : cet employé n\'a aucune avance en cours.']);
-        }
-
-        $validated = $request->validate([
-            'montant_retenue' => 'required|numeric|min:0'
-        ]);
-
-        $maxDuctible = min($ticket->montant_brut_cumule, $ticket->avance->solde_restant);
-        $retenue = min($validated['montant_retenue'], $maxDuctible);
-
-        $ticket->update([
-            'montant_deduit_manuel' => $retenue,
-            'montant_net' => $ticket->montant_brut_cumule - $retenue
-        ]);
-
-        $etat = $ticket->etatPaiement;
-        $etat->update(['montant_total_net' => $etat->tickets()->sum('montant_net')]);
-
-        return back()->with('success', "Retenue de {$retenue} F appliquée pour {$ticket->personnel->nom}.");
-    }
-
-    /**
-     * Validation de l'état (Autorise le paiement)
+     * Validation d'un État
      */
     public function etatValider(EtatPaiement $etat)
     {
-        // Vérification stricte via la Policy
-        $this->authorize('valider', $etat); 
+        $this->authorize('valider', $etat);
 
-        $etat->update(['statut' => 'VALIDE']);
-        return back()->with('success', 'État de paiement validé et prêt pour décaissement.');
-    }
-
-    /**
-     * Paiement de masse des tickets espèces
-     */
-    public function etatPayerMassEspeces(Request $request, EtatPaiement $etat, PaiementEspecesService $service)
-    {
-        // Vérification de la permission
-        if (!$request->user()->can('payer_especes') && !$request->user()->can('*')) {
-            abort(403, 'Vous n\'avez pas l\'autorisation de décaisser des espèces.');
-        }
-
-        try {
-            $count = $service->payerEtatComplet($etat->id);
-            return back()->with('success', "$count tickets espèces ont été soldés.");
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Téléchargement du Bordereau de Caisse PDF
-     */
-    public function telechargerBordereauCaisse(EtatPaiement $etat, GenerateBordereauCaissePdfAction $action)
-    {
-        $this->authorize('viewAny', TicketPaiement::class);
-
-        try {
-            return $action->execute($etat);
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Export Wave Global pour toute l'usine
-     */
-    public function genererLotWaveGlobal(Request $request, WaveExportService $service)
-    {
-        if (!$request->user()->can('generer_lot_wave') && !$request->user()->can('*')) {
-            abort(403, 'Accès refusé.');
-        }
-
-        try {
-            $lot = $service->genererLotGlobal($request->user()->id);
-            return back()->with('success', "Lot Wave Global {$lot->reference_lot} généré. Prêt pour le téléchargement.");
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Génère le lot Wave pour un État
-     */
-    public function genererLotWave(Request $request, EtatPaiement $etat, WaveExportService $service)
-    {
-        if (!$request->user()->can('generer_lot_wave') && !$request->user()->can('*')) {
-            abort(403, 'Accès refusé.');
-        }
-        
-        try {
-            $service->genererLotPourEtat($etat, $request->user()->id);
-            return back()->with('success', "Le Lot Wave a été généré avec succès. Vous pouvez maintenant télécharger le fichier Excel.");
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Déclenche le téléchargement du fichier Excel Wave
-     */
-    public function telechargerLotWave(LotPaiementWave $lot)
-    {
-        // On permet le téléchargement, la sécurité d'accès au lot peut être affinée si besoin
-        return Excel::download(new WaveBulkExport($lot), $lot->reference_lot . '.xlsx');
-    }
-
-    /**
-     * Validation finale du paiement Wave (Déduction des avances)
-     */
-    public function validerLotWave(Request $request, LotPaiementWave $lot, WaveExportService $service)
-    {
-        // Sécurité Wave
-        if (!$request->user()->can('generer_lot_wave') && !$request->user()->can('*')) {
-            abort(403, 'Accès refusé.');
-        }
-
-        try {
-            $service->validerLot($lot);
-            return back()->with('success', 'Le lot Wave a été validé ! Les tickets sont soldés et les avances ont été mises à jour.');
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Suppression d'un état de paiement et libération des pointages
-     */
-    public function etatDestroy(Request $request, EtatPaiement $etat)
-    {
-        // Seul un rôle ayant des droits de haut niveau devrait pouvoir supprimer
-        if (!$request->user()->can('valider_etat_paiement') && !$request->user()->can('*')) {
-            abort(403, 'Vous n\'avez pas le droit de supprimer un état de paie.');
-        }
-
-        $ticketsVerrouilles = $etat->tickets()->where('statut', '!=', 'NON_SOLDE')->count();
-        
-        if ($ticketsVerrouilles > 0) {
-            return back()->withErrors(['error' => 'Impossible de supprimer cet état. Certains paiements sont déjà en cours ou soldés.']);
-        }
-
-        try {
-            DB::transaction(function () use ($etat) {
-                PointageLigne::whereIn('ticket_paiement_id', $etat->tickets()->pluck('id'))
-                    ->update([
-                        'ticket_paiement_id' => null,
-                        'statut_ligne' => 'EN_ATTENTE'
-                    ]);
-                $etat->tickets()->delete();
-                $etat->delete();
-            });
-
-            return redirect()->route('financeEtatsIndex')->with('success', 'État de paiement supprimé. Les pointages sont de nouveau disponibles.');
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Erreur lors de la suppression : ' . $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Gestion des avances (Index)
-     */
-    public function avancesIndex(Request $request)
-    {
-        $search = $request->input('search');
-
-        $avances = Avance::with('personnel')
-            ->when($search, function ($query, $search) {
-                $query->whereHas('personnel', function($q) use ($search) {
-                    $q->where('nom', 'ilike', "%{$search}%")
-                      ->orWhere('prenom', 'ilike', "%{$search}%")
-                      ->orWhere('matricule', 'ilike', "%{$search}%");
-                })->orWhere('motif', 'ilike', "%{$search}%");
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate(15)
-            ->withQueryString();
-
-        return Inertia::render('Finance/Avances/Index', [
-            'avances'    => $avances,
-            'personnels' => Personnel::where('actif', true)->orderBy('nom')->get(['id', 'matricule', 'nom', 'prenom']),
-            'filters'    => ['search' => $search]
-        ]);
-    }
-
-    /**
-     * Création d'une avance (Store)
-     */
-    public function avanceStore(Request $request, AvanceService $service)
-    {
-        if (!$request->user()->can('gerer_avances') && !$request->user()->can('*')) abort(403);
-        $validated = $request->validate([
-            'personnel_id' => 'required|exists:personnels,id',
-            'montant'      => 'required|numeric|min:500',
-            'motif'        => 'required|string|max:255',
-            'date'         => 'nullable|date',
+        $etat->update([
+            'statut' => 'VALIDE',
+            'valide_par_id' => auth()->id(),
+            'date_validation' => now(),
         ]);
 
-        try {
-            $personnel = Personnel::findOrFail($validated['personnel_id']);
-            $service->creerAvance(
-                $personnel,
-                (float) $validated['montant'],
-                $validated['motif'],
-                $validated['date'] ?? now()->toDateString()
-            );
-
-            return back()->with('success', "Avance accordée à {$personnel->nom} {$personnel->prenom}.");
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
+        return back()->with('success', "L'état a été verrouillé pour le paiement.");
     }
 
     /**
-     * Solder TOUS les tickets espèces validés de l'usine d'un coup
+     * Suppression d'un État
      */
-    public function payerToutEspecesUsine(Request $request, PaiementEspecesService $service)
+    public function etatDestroy(EtatPaiement $etat)
     {
-        if (!$request->user()->can('payer_especes') && !$request->user()->can('*')) {
+        // Seul celui qui peut générer peut annuler (Admin/RH/Chef de Section)
+        if (!$etat->statut === 'PROVISOIRE' || (!auth()->user()->can('generer_etat_paiement') && !auth()->user()->can('*'))) {
+            abort(403, "Action impossible sur un état validé ou sans permission.");
+        }
+
+        DB::transaction(function () use ($etat) {
+            DB::table('pointage_lignes')
+                ->whereIn('ticket_paiement_id', $etat->tickets()->pluck('id'))
+                ->update(['ticket_paiement_id' => null, 'statut_ligne' => 'EN_ATTENTE']);
+            $etat->delete();
+        });
+
+        return redirect()->route('financeEtatsIndex')->with('success', "L'état a été annulé.");
+    }
+
+    /**
+     * Mise à jour de la retenue sur ticket
+     */
+    public function updateTicketRetenue(Request $request, TicketPaiement $ticket)
+    {
+        // Seul le caissier ou celui qui gère les avances peut modifier une retenue
+        if (!auth()->user()->can('gerer_avances') && !auth()->user()->can('payer_especes') && !auth()->user()->can('*')) {
+            abort(403);
+        }
+
+        $validated = $request->validate(['montant_retenue' => 'required|numeric|min:0']);
+
+        if ($ticket->statut === 'SOLDE' || $ticket->etatPaiement->statut === 'VALIDE') {
+            // Optionnel : permettre la modif si l'état est VALIDE mais pas encore PAYÉ ? 
+            // Ici on bloque si l'état est verrouillé (VALIDE).
+            if ($ticket->etatPaiement->statut === 'VALIDE' && !auth()->user()->can('*')) {
+                return back()->withErrors(['error' => "L'état est verrouillé."]);
+            }
+        }
+
+        $ticket->update([
+            'montant_deduit_manuel' => $validated['montant_retenue'],
+            'montant_net' => $ticket->montant_brut_cumule - $validated['montant_retenue']
+        ]);
+
+        return back()->with('success', "Retenue mise à jour.");
+    }
+
+    /**
+     * ESPÈCES : Payer tout un état
+     */
+    public function etatPayerMassEspeces(EtatPaiement $etat, PaiementEspecesService $service)
+    {
+        if (!auth()->user()->can('payer_especes') && !auth()->user()->can('*')) {
             abort(403);
         }
 
         try {
-            // On récupère tous les IDs des tickets espèces validés et non soldés
-            $ticketsIds = TicketPaiement::where('mode_paiement', 'ESPECES')
-                ->where('statut', 'NON_SOLDE')
-                ->whereHas('etatPaiement', fn($q) => $q->where('statut', 'VALIDE'))
-                ->pluck('id');
+            $count = $service->payerEtatComplet($etat->id);
+            return back()->with('success', "$count paiements espèces soldés.");
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
 
-            if ($ticketsIds->isEmpty()) {
-                throw new \Exception("Aucun paiement espèces en attente.");
-            }
+    /**
+     * Index des Avances
+     */
+    public function avancesIndex(Request $request)
+    {
+        if (!auth()->user()->can('gerer_avances') && !auth()->user()->can('*')) {
+            abort(403);
+        }
 
-            $count = 0;
-            DB::transaction(function () use ($ticketsIds, $service, &$count) {
-                foreach ($ticketsIds as $id) {
-                    $ticket = TicketPaiement::find($id);
-                    $service->payer($ticket);
-                    $count++;
-                }
-            });
+        $search = $request->input('search');
+        return Inertia::render('Finance/Avances/Index', [
+            'avances' => Avance::with('personnel')
+                ->when($search, fn($q) => $q->whereHas('personnel', fn($sq) => $sq->where('nom', 'ilike', "%{$search}%")))
+                ->orderBy('created_at', 'desc')
+                ->paginate(15),
+            'personnels' => Personnel::where('actif', true)->orderBy('nom')->get(['id', 'matricule', 'nom', 'prenom']),
+        ]);
+    }
 
-            return back()->with('success', "Succès : $count agents ont été payés en espèces dans toute l'usine.");
+    /**
+     * Création d'une Avance
+     */
+    public function avanceStore(Request $request, AvanceService $service)
+    {
+        if (!auth()->user()->can('gerer_avances') && !auth()->user()->can('*')) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'personnel_id' => 'required|exists:personnels,id',
+            'montant' => 'required|numeric|min:1',
+            'motif' => 'required|string|max:255',
+            'date' => 'nullable|date',
+        ]);
+
+        try {
+            $personnel = Personnel::findOrFail($validated['personnel_id']);
+            $service->creerAvance($personnel, $validated['montant'], $validated['motif'], $validated['date']);
+            return back()->with('success', "Avance accordée.");
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * PDF : Bordereau de caisse
+     */
+    public function telechargerBordereauCaisse(EtatPaiement $etat, GenerateBordereauCaissePdfAction $action)
+    {
+        if (!auth()->user()->can('payer_especes') && !auth()->user()->can('*')) {
+            abort(403);
+        }
+        return $action->execute($etat);
+    }
+
+    /**
+     * WAVE : Génération du lot
+     */
+    public function genererLotWave(EtatPaiement $etat, WaveExportService $service)
+    {
+        if (!auth()->user()->can('generer_lot_wave') && !auth()->user()->can('*')) {
+            abort(403);
+        }
+
+        try {
+            $lot = $service->genererLotPourEtat($etat, auth()->id());
+            return back()->with('success', "Lot Wave {$lot->reference_lot} généré.");
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * WAVE : Téléchargement Excel
+     */
+    public function telechargerLotWave(LotPaiementWave $lot)
+    {
+        if (!auth()->user()->can('generer_lot_wave') && !auth()->user()->can('*')) {
+            abort(403);
+        }
+
+        return Excel::download(new WaveBulkExport($lot), 'WAVE_' . $lot->reference_lot . '.xlsx');
+    }
+
+    /**
+     * WAVE : Confirmation finale
+     */
+    public function validerLotWave($lotId, WaveExportService $service)
+    {
+        if (!auth()->user()->can('generer_lot_wave') && !auth()->user()->can('*')) {
+            abort(403);
+        }
+
+        try {
+            $service->confirmerTransfertLot($lotId);
+            return back()->with('success', "Transfert Wave validé et tickets soldés.");
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         }

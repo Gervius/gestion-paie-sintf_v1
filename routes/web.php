@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/personnel/{personnel}/edit', [PersonnelController::class, 'edit'])->name('personnelEdit');
         Route::put('/personnel/{personnel}', [PersonnelController::class, 'update'])->name('personnelUpdate');
         Route::delete('/personnel/{personnel}', [PersonnelController::class, 'destroy'])->name('personnelDestroy');
+        Route::get('/personnel/{personnel}/badge', [PersonnelController::class, 'telechargerBadge'])->name('personnelBadge');
         
         // --- Endpoints API Personnel ---
         Route::prefix('api')->group(function () {
@@ -82,7 +83,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // --- Paiement & Export ---
         Route::post('/finance/tickets/{ticket}/payer', [FinanceController::class, 'paiementEspeces'])->name('financeTicketsPayer');
-        Route::post('/finance/tickets/{ticket}/retenue', [FinanceController::class, 'updateRetenue'])->name('financeTicketsUpdateRetenue');
+        Route::post('/finance/tickets/{ticket}/retenue', [FinanceController::class, 'updateTicketRetenue'])->name('financeTicketsUpdateRetenue');
         Route::post('/finance/etats/{etat}/payer-especes-masse', [FinanceController::class, 'etatPayerMassEspeces'])->name('financeEtatsPayerMassEspeces');
         Route::post('/finance/etats/{etat}/wave/generer', [FinanceController::class, 'genererLotWave'])->name('financeWaveGenerer');
         Route::get('/finance/wave/{lot}/telecharger', [FinanceController::class, 'telechargerLotWave'])->name('financeWaveTelecharger');
@@ -172,9 +173,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'edit' => 'permissionsEdit', 'update' => 'permissionsUpdate', 'destroy' => 'permissionsDestroy'
         ]);
 
-        Route::get('/finance/consolidation', [ConsolidationController::class, 'index'])->name('financeConsolidationIndex');
-        Route::get('/finance/consolidation/bordereau-especes', [ConsolidationController::class, 'telechargerBordereauEspeces'])->name('financeConsolidationBordereauEspeces');
-        Route::post('/finance/payer-tout-especes', [FinanceController::class, 'payerToutEspecesUsine'])->name('financePayerToutEspeces');
+        
 
     }); 
 }); 

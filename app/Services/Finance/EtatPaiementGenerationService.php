@@ -6,85 +6,81 @@ use App\Models\EtatPaiement;
 use App\Models\PointageLigne;
 use App\Models\TicketPaiement;
 use App\Models\Section;
-use App\Models\Avance;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class EtatPaiementGenerationService
 {
-    public function genererIntervalle(int $sectionId, Carbon $dateDebut, Carbon $dateFin): EtatPaiement
+    public function genererIntervalleMulti(array $sectionIds, Carbon $dateDebut, Carbon $dateFin): int
     {
-        return DB::transaction(function () use ($sectionId, $dateDebut, $dateFin) {
-            
-            $lignes = PointageLigne::where('statut_ligne', 'EN_ATTENTE')
-                ->whereNull('ticket_paiement_id') // <--- VERROU ANTI DOUBLE-PAIEMENT
-                ->whereHas('pointage', function ($q) use ($sectionId, $dateDebut, $dateFin) {
-                    $q->where('section_id', $sectionId)
-                      ->where('statut', 'CLOTURE') // Sécurité supp : uniquement les feuilles clôturées
-                      ->whereBetween('date_pointage', [$dateDebut->toDateString(), $dateFin->toDateString()]);
-                })
-                ->with('personnel')
-                ->get();
+        return DB::transaction(function () use ($sectionIds, $dateDebut, $dateFin) {
+            $etatsCrees = 0;
+            $debutH24 = $dateDebut->copy()->startOfDay();
+            $finH24 = $dateFin->copy()->endOfDay();
 
-            if ($lignes->isEmpty()) {
-                throw new \Exception('Aucun pointage valide et non-facturé trouvé pour cette période. Ils sont peut-être déjà dans un autre état de paiement.');
-            }
+            foreach ($sectionIds as $sectionId) {
+                // 1. Récupération des lignes non payées
+                $lignes = PointageLigne::where('statut_ligne', 'EN_ATTENTE')
+                    ->whereNull('ticket_paiement_id')
+                    ->whereHas('pointage', function ($q) use ($sectionId, $debutH24, $finH24) {
+                        $q->where('section_id', $sectionId)
+                          ->where('statut', 'CLOTURE')
+                          ->whereBetween('date_pointage', [$debutH24, $finH24]);
+                    })
+                    ->with(['personnel', 'pointage'])
+                    ->get();
 
-            $section = Section::findOrFail($sectionId);
-            $reference = 'ETAT-' . $section->code_section . '-' . $dateDebut->format('dmy') . '-' . $dateFin->format('dmy');
-            
-            $etat = EtatPaiement::create([
-                'reference_etat' => $reference,
-                'section_id'     => $sectionId,
-                'date_etat'      => now()->toDateString(),
-                'statut'         => 'PROVISOIRE',
-                'montant_total_brut' => 0,
-                'montant_total_net'  => 0,
-            ]);
+                if ($lignes->isEmpty()) continue;
 
-            $grouped = $lignes->groupBy('personnel_id');
-            $totalBrut = 0;
+                // 2. Groupe par type (Rendement vs Journalier)
+                $groupesParType = $lignes->groupBy(fn($l) => $l->pointage->type_pointage);
+                $section = Section::findOrFail($sectionId);
 
-            foreach ($grouped as $personnelId => $lignesPersonnel) {
-                $personnel = $lignesPersonnel->first()->personnel;
-                $montantBrut = $lignesPersonnel->sum('montant_brut');
-
-                $avanceActive = Avance::where('personnel_id', $personnelId)
-                    ->where('statut', 'ACTIVE')
-                    ->where('solde_restant', '>', 0)
-                    ->first();
-
-                // 💡 CORRECTION ICI : On récupère la valeur saisie sur le terrain (moyen_paiement de la ligne)
-                // S'il n'y a rien, on se rabat sur la préférence du profil, sinon ESPECES.
-                $modeChoisiSurTerrain = $lignesPersonnel->first()->moyen_paiement ?? $personnel->preference_paiement ?? 'ESPECES';
-
-                $ticket = TicketPaiement::create([
-                    'personnel_id'         => $personnelId,
-                    'etat_paiement_id'     => $etat->id,
-                    'date_generation'      => now()->toDateString(),
-                    'montant_brut_cumule'  => $montantBrut,
-                    'montant_deduit_manuel'=> 0, 
-                    'montant_net'          => $montantBrut,
-                    'mode_paiement'        => $modeChoisiSurTerrain, // ✅ Intégration de la correction
-                    'statut'               => 'NON_SOLDE',
-                    'avance_id'            => $avanceActive ? $avanceActive->id : null, 
-                ]);
-
-                PointageLigne::whereIn('id', $lignesPersonnel->pluck('id'))
-                    ->update([
-                        'ticket_paiement_id' => $ticket->id,
-                        'statut_ligne'       => 'INCLUS_ETAT'
-                    ]);
+                foreach ($groupesParType as $type => $lignesType) {
+                    $reference = 'CONS-' . $section->code_section . '-' . strtoupper(substr($type, 0, 3)) . '-' . now()->format('dmyHi');
                     
-                $totalBrut += $montantBrut;
+                    $etat = EtatPaiement::create([
+                        'reference_etat' => $reference,
+                        'section_id' => $sectionId,
+                        'date_debut' => $dateDebut->toDateString(),
+                        'date_fin' => $dateFin->toDateString(),
+                        'type_pointage' => $type,
+                        'statut' => 'PROVISOIRE',
+                    ]);
+
+                    // 3. Agrégation par agent
+                    $lignesParAgent = $lignesType->groupBy('personnel_id');
+                    $totalBrutEtat = 0;
+
+                    foreach ($lignesParAgent as $personnelId => $groupesLignes) {
+                        $personnel = $groupesLignes->first()->personnel;
+                        $cumulQuantite = $groupesLignes->sum('quantite');
+                        $cumulBrut = $groupesLignes->sum('montant_brut');
+                        
+                        $mode = $groupesLignes->last()->moyen_paiement ?? $personnel->preference_paiement ?? 'ESPECES';
+
+                        $ticket = TicketPaiement::create([
+                            'personnel_id' => $personnelId,
+                            'etat_paiement_id' => $etat->id,
+                            'date_generation' => now()->toDateString(),
+                            'quantite_totale' => $cumulQuantite, // Correction bug 0.00
+                            'montant_brut_cumule' => $cumulBrut,
+                            'montant_net' => $cumulBrut,
+                            'mode_paiement' => $mode,
+                            'statut' => 'NON_SOLDE',
+                        ]);
+
+                        PointageLigne::whereIn('id', $groupesLignes->pluck('id'))
+                            ->update(['ticket_paiement_id' => $ticket->id, 'statut_ligne' => 'INCLUS_ETAT']);
+
+                        $totalBrutEtat += $cumulBrut;
+                    }
+
+                    $etat->update(['montant_total_brut' => $totalBrutEtat, 'montant_total_net' => $totalBrutEtat]);
+                    $etatsCrees++;
+                }
             }
-
-            $etat->update([
-                'montant_total_brut' => $totalBrut,
-                'montant_total_net'  => $totalBrut,
-            ]);
-
-            return $etat;
+            return $etatsCrees;
         });
     }
 }

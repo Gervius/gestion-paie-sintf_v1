@@ -1,298 +1,270 @@
 import { usePage, router, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import { 
-    ArrowLeft, CheckCircle2, AlertCircle, Wallet, 
-    Banknote, Edit3, Save, X, FileSpreadsheet, Trash2,
-    FileText 
+    ArrowLeft, CheckCircle2, Wallet, Banknote, Edit3, Save, X, 
+    FileSpreadsheet, Trash2, Printer, AlertCircle, Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
-// 💡 IMPORT DE TOUTES LES ROUTES DYNAMIQUES
+// IMPORT STRICT DE TES ROUTES ZIGGY
 import { 
-    financeEtatsIndex, 
-    financeEtatsValider, 
-    financeEtatsDestroy, 
-    financeEtatsPayerMassEspeces, 
-    financeTicketsUpdateRetenue, 
-    financeEtatsBordereauCaisse,
-    financeWaveGenerer,
-    financeWaveTelecharger,
-    financeWaveValider
+    financeEtatsIndex, financeEtatsValider, financeEtatsDestroy, 
+    financeEtatsPayerMassEspeces, financeTicketsUpdateRetenue, 
+    financeEtatsBordereauCaisse, financeWaveGenerer, 
+    financeWaveTelecharger, financeWaveValider 
 } from '@/routes';
 
 export default function Show() {
-    const { etat, can, flash } = usePage<any>().props;
+    const { etat, can } = usePage<any>().props;
 
-    
-    
     const [editingTicket, setEditingTicket] = useState<number | null>(null);
     const [retenueValue, setRetenueValue] = useState<number>(0);
 
+    // --- ANALYSE DES ÉTATS ---
     const isProvisoire = etat.statut === 'PROVISOIRE';
-    const isValide = etat.statut === 'VALIDE';
+    const isValide = etat.statut === 'VALIDE'; // Prêt pour le décaissement
+    
+    // Détection du lot Wave (si un ticket a un lot_wave_id, le lot est généré)
+    const ticketWaveAvecLot = etat.tickets.find((t: any) => t.lot_wave_id !== null && t.mode_paiement === 'WAVE');
+    const hasWaveLot = !!ticketWaveAvecLot;
+    const lotWaveId = ticketWaveAvecLot?.lot_wave_id;
 
+    // --- CALCULS POUR LE CAISSIER ---
+    const totalNetWave = etat.tickets.filter((t: any) => t.mode_paiement === 'WAVE').reduce((sum: number, t: any) => sum + Number(t.montant_net), 0);
+    const totalNetEspeces = etat.tickets.filter((t: any) => t.mode_paiement === 'ESPECES').reduce((sum: number, t: any) => sum + Number(t.montant_net), 0);
+    const hasTicketsEspeces = etat.tickets.some((t: any) => t.mode_paiement === 'ESPECES' && t.statut === 'NON_SOLDE');
+    const hasTicketsWave = etat.tickets.some((t: any) => t.mode_paiement === 'WAVE' && t.statut === 'NON_SOLDE');
+
+    // --- ACTIONS BACKEND ---
     const handleValiderEtat = () => {
-        if (!confirm('Êtes-vous sûr de valider cet état ? Les montants seront verrouillés pour le paiement.')) return;
+        if (!confirm('Verrouiller la campagne ? Les retenues ne pourront plus être modifiées.')) return;
         router.post(financeEtatsValider.url({ etat: etat.id }), {}, { preserveScroll: true });
     };
 
     const handleDeleteEtat = () => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cet état ? Tous les pointages liés redeviendront "En attente" pour une prochaine génération.')) return;
+        if (!confirm('Annuler cette campagne ? Les pointages retourneront en attente.')) return;
         router.delete(financeEtatsDestroy.url({ etat: etat.id }));
     };
 
-    const handlePayerEspeces = () => {
-        if (!confirm('Confirmez-vous le décaissement de tous les tickets ESPÈCES ? Cette action va solder les tickets et déduire les avances.')) return;
-        router.post(financeEtatsPayerMassEspeces.url({ etat: etat.id }), {}, { preserveScroll: true });
-    };
-
+    // 💡 Correction appliquée : Utilisation stricte de la route générée
     const handleSaveRetenue = (ticketId: number) => {
         router.post(financeTicketsUpdateRetenue.url({ ticket: ticketId }), { montant_retenue: retenueValue }, {
             preserveScroll: true,
             onSuccess: () => setEditingTicket(null),
-            onError: (err) => alert(err.error || "Erreur lors de l'application de la retenue.")
         });
     };
 
-    // --- Calculs Rapides (Statistiques) ---
-    const totalTickets = etat.tickets.length;
-    const ticketsWave = etat.tickets.filter((t: any) => t.mode_paiement === 'WAVE').length;
-    const ticketsEspeces = etat.tickets.filter((t: any) => t.mode_paiement === 'ESPECES').length;
-    const totalRetenues = etat.tickets.reduce((sum: number, t: any) => sum + Number(t.montant_deduit_manuel), 0);
-
     return (
-        <div className="p-6 space-y-6 bg-background">
-            <Head title={`État de Paie - ${etat.reference_etat}`} />
+        <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+            <Head title={`Paiement - ${etat.reference_etat}`} />
 
-            <Link href={financeEtatsIndex.url()} className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors">
-                <ArrowLeft size={16} /> Retour aux états de paie
-            </Link>
-
-            {flash?.success && (
-                <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl shadow-sm">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="font-bold text-sm">{flash.success}</span>
-                </div>
-            )}
-
-            {flash?.error && (
-                <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl shadow-sm">
-                    <AlertCircle className="h-5 w-5 text-red-600" />
-                    <span className="font-bold text-sm">{flash.error}</span>
-                </div>
-            )}
-
-            {/* EN-TÊTE ET KPI */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-4 bg-white p-6 rounded-xl border border-border shadow-sm flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-black text-primary">ÉTAT {etat.reference_etat}</h2>
-                        <p className="text-muted-foreground font-medium mt-1">Section : {etat.section.nom_section} — Date : {new Date(etat.date_etat).toLocaleDateString('fr-FR')}</p>
+            {/* EN-TÊTE */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <Link href={financeEtatsIndex.url()} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-secondary mb-2">
+                        <ArrowLeft size={16} /> Retour aux campagnes
+                    </Link>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight">{etat.reference_etat}</h1>
+                        <Badge className={`px-4 py-1.5 rounded-full text-xs font-black uppercase border-0 ${isValide ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {etat.statut}
+                        </Badge>
                     </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold ${
-                            isProvisoire ? 'bg-orange-100 text-orange-700' : 
-                            isValide ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                        }`}>
-                            STATUT : {etat.statut}
-                        </span>
+                </div>
+
+                {/* CONTRÔLES ÉTAPE 1 : VALIDATION */}
+                {isProvisoire && (
+                    <div className="flex gap-3 bg-white p-2 rounded-xl shadow-sm border">
+                        <Button onClick={handleDeleteEtat} variant="ghost" className="text-red-500 hover:bg-red-50 font-black">
+                            <Trash2 className="mr-2" size={18}/> Annuler
+                        </Button>
+                        <Button onClick={handleValiderEtat} className="bg-secondary hover:bg-secondary/90 text-white font-black px-6 shadow-md">
+                            <CheckCircle2 className="mr-2" size={18}/> Verrouiller & Passer au Paiement
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            {/* CONTRÔLES ÉTAPE 2 : LE TERMINAL DE DÉCAISSEMENT (Visible uniquement si validé) */}
+            {isValide && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-4">
+                    
+                    {/* PANNEAU ESPÈCES */}
+                    <div className="bg-white p-6 rounded-2xl border-2 border-blue-100 shadow-md">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-black text-blue-800 uppercase flex items-center gap-2"><Banknote size={20}/> Caisse Espèces</h3>
+                            <span className="text-2xl font-black text-blue-600">{Number(totalNetEspeces).toLocaleString()} F</span>
+                        </div>
                         
-                        {isProvisoire && can.valider_etat && (
-                            <Button onClick={handleDeleteEtat} variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 h-8 mt-1">
-                                <Trash2 size={14} className="mr-1.5" /> Supprimer l'état
-                            </Button>
+                        {hasTicketsEspeces ? (
+                            <div className="space-y-3">
+                                <Button asChild variant="outline" className="w-full h-12 border-2 border-blue-200 text-blue-700 font-bold hover:bg-blue-50">
+                                    <a href={financeEtatsBordereauCaisse.url({ etat: etat.id })} target="_blank">
+                                        <Printer className="mr-2" size={18}/> 1. Imprimer Bordereau de Caisse
+                                    </a>
+                                </Button>
+                                {/* Remplace la route si ta méthode est différente, j'utilise la route globale du contrôleur */}
+                                <Button 
+                                    onClick={() => { 
+                                        if(confirm('Solder tous les paiements espèces ?')) 
+                                            router.post(financeEtatsPayerMassEspeces.url({ etat: etat.id }), {}, { preserveScroll: true }) 
+                                    }}
+                                >
+                                    <CheckCircle2 className="mr-2" size={18}/> 2. Confirmer Décaissement Espèces
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center gap-2 h-12 bg-slate-100 text-slate-500 rounded-xl font-bold text-sm">
+                                <CheckCircle2 size={18} className="text-green-500" /> Tous les paiements espèces sont soldés
+                            </div>
                         )}
                     </div>
-                </div>
 
-                <div className="bg-white p-5 rounded-xl border border-border shadow-sm">
-                    <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Total Brut Généré</div>
-                    <div className="text-2xl font-black text-gray-900">{Number(etat.montant_total_brut).toLocaleString('fr-FR')} F</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-border shadow-sm">
-                    <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Total Retenues (Avances)</div>
-                    <div className="text-2xl font-black text-destructive">{totalRetenues.toLocaleString('fr-FR')} F</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-border shadow-sm bg-primary/5 border-primary/20">
-                    <div className="text-xs font-bold text-primary uppercase mb-1">Net Total à Payer</div>
-                    <div className="text-2xl font-black text-primary">{Number(etat.montant_total_net).toLocaleString('fr-FR')} F</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-border shadow-sm flex flex-col justify-center">
-                    <div className="text-xs font-bold text-muted-foreground uppercase mb-2">Répartition ({totalTickets} agents)</div>
-                    <div className="flex gap-4">
-                        <span className="text-sm font-bold text-indigo-600"><Wallet size={14} className="inline mr-1"/> {ticketsWave} Wave</span>
-                        <span className="text-sm font-bold text-emerald-600"><Banknote size={14} className="inline mr-1"/> {ticketsEspeces} Espèces</span>
-                    </div>
-                </div>
-            </div>
+                    {/* PANNEAU WAVE */}
+                    <div className="bg-white p-6 rounded-2xl border-2 border-indigo-100 shadow-md">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-black text-indigo-800 uppercase flex items-center gap-2"><Wallet size={20}/> Portail Wave</h3>
+                            <span className="text-2xl font-black text-indigo-600">{Number(totalNetWave).toLocaleString()} F</span>
+                        </div>
 
-            {/* TABLEAU DES TICKETS */}
-            <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-[10px] font-bold text-primary uppercase tracking-wider">
-                        <tr>
-                            <th className="px-4 py-4 text-left">Agent</th>
-                            <th className="px-4 py-4 text-center">Mode</th>
-                            <th className="px-4 py-4 text-right">Brut Cumulé</th>
-                            <th className="px-4 py-4 text-center">Avance en cours</th>
-                            <th className="px-4 py-4 text-right">Retenue (Déduction)</th>
-                            <th className="px-4 py-4 text-right">Net à Payer</th>
-                            <th className="px-4 py-4 text-center">Statut Ticket</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                        {etat.tickets.map((ticket: any) => (
-                            <tr key={ticket.id} className="hover:bg-accent/5">
-                                <td className="px-4 py-3">
-                                    <div className="font-bold text-gray-900">{ticket.personnel.matricule}</div>
-                                    <div className="text-xs text-muted-foreground">{ticket.personnel.nom} {ticket.personnel.prenom}</div>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md border uppercase ${ticket.mode_paiement === 'ESPECES' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
-                                        {ticket.mode_paiement}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 text-right font-medium text-gray-600">
-                                    {Number(ticket.montant_brut_cumule).toLocaleString('fr-FR')} F
-                                </td>
-                                
-                                <td className="px-4 py-3 text-center">
-                                    {ticket.avance ? (
-                                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                                            {Number(ticket.avance.solde_restant).toLocaleString('fr-FR')} F
-                                        </span>
-                                    ) : (
-                                        <span className="text-xs text-gray-400">-</span>
-                                    )}
-                                </td>
-
-                                <td className="px-4 py-3 text-right">
-                                    {editingTicket === ticket.id ? (
-                                        <div className="flex items-center justify-end gap-2">
-                                            <input 
-                                                type="number" 
-                                                className="w-24 p-1 text-right border rounded outline-none focus:ring-2 focus:ring-primary text-sm font-bold"
-                                                value={retenueValue}
-                                                onChange={(e) => setRetenueValue(Number(e.target.value))}
-                                                max={ticket.avance ? Number(ticket.avance.solde_restant) : 0}
-                                            />
-                                            <button onClick={() => handleSaveRetenue(ticket.id)} className="text-green-600 hover:bg-green-50 p-1 rounded"><Save size={16}/></button>
-                                            <button onClick={() => setEditingTicket(null)} className="text-red-600 hover:bg-red-50 p-1 rounded"><X size={16}/></button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-end gap-2 font-bold text-destructive">
-                                            -{Number(ticket.montant_deduit_manuel).toLocaleString('fr-FR')} F
-                                            {isProvisoire && ticket.avance && (
-                                                <button onClick={() => { setEditingTicket(ticket.id); setRetenueValue(Number(ticket.montant_deduit_manuel)); }} className="text-gray-400 hover:text-primary transition-colors">
-                                                    <Edit3 size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </td>
-
-                                <td className="px-4 py-3 text-right font-black text-primary text-base">
-                                    {Number(ticket.montant_net).toLocaleString('fr-FR')} F
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ticket.statut === 'SOLDE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                        {ticket.statut.replace('_', ' ')}
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* BARRE D'ACTIONS GLOBALES */}
-            <div className="flex justify-end gap-4 pt-4">
-                
-                {/* Bouton de validation globale (Chef de section) */}
-                {isProvisoire && can.valider_etat && (
-                    <Button onClick={handleValiderEtat} className="bg-primary hover:bg-primary/90 text-white font-bold px-8 h-12">
-                        <CheckCircle2 className="mr-2" size={20} /> Valider l'État (Verrouiller)
-                    </Button>
-                )}
-
-                {isValide && (
-                    <>
-                        
-                        {can.payer_especes && (() => {
-                            const ticketsEspeces = etat.tickets.filter((t: any) => t.mode_paiement === 'ESPECES');
-                            if (ticketsEspeces.length === 0) return null;
-
-                            const isEspecesSolde = ticketsEspeces.every((t: any) => t.statut === 'SOLDE');
-
-                            if (!isEspecesSolde) {
-                                return (
-                                    <div className="flex gap-2 p-1 bg-emerald-50 border border-emerald-200 rounded-xl items-center pr-2">
-                                        <Button className="bg-white text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold h-10 transition-all shadow-sm" asChild>
-                                            <a href={financeEtatsBordereauCaisse.url({ etat: etat.id })} target="_blank" rel="noopener noreferrer">
-                                                <FileText className="mr-2" size={18} /> Imprimer Bordereau
-                                            </a>
-                                        </Button>
-                                        <Button onClick={handlePayerEspeces} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 transition-all shadow-md">
-                                            <Banknote className="mr-2" size={18} /> Confirmer Décaissement
-                                        </Button>
-                                    </div>
-                                );
-                            }
-
-                            return (
-                                <div className="flex items-center gap-2 px-4 h-12 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 font-bold text-sm">
-                                    <CheckCircle2 size={18} className="text-green-500" /> Paiements Espèces validés
-                                </div>
-                            );
-                        })()}
-                        
-                        {/* 🔵 ZONE WAVE (Ergonomie 3 étapes) */}
-                        {can.gerer_wave && (() => {
-                            const waveTickets = etat.tickets.filter((t: any) => t.mode_paiement === 'WAVE');
-                            if (waveTickets.length === 0) return null;
-
-                            const lotCree = waveTickets.find((t: any) => t.lot_wave_id !== null);
-
-                            if (!lotCree) {
-                                return (
-                                    <Button type="button" onClick={() => router.post(financeWaveGenerer.url({ etat: etat.id }))} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-12 transition-all">
-                                        <FileSpreadsheet className="mr-2" size={20} /> Générer Lot Wave
+                        {hasTicketsWave ? (
+                            <div className="space-y-3">
+                                {!hasWaveLot ? (
+                                    <Button 
+                                        onClick={() => router.post(financeWaveGenerer.url({ etat: etat.id }), {}, { preserveScroll: true })} 
+                                        className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-md"
+                                    >
+                                        <Send className="mr-2" size={18}/> 1. Préparer le lot Wave
                                     </Button>
-                                );
-                            } 
-                            
-                            const isWaveSolde = waveTickets.every((t: any) => t.statut === 'SOLDE');
-
-                            if (!isWaveSolde) {
-                                return (
-                                    <div className="flex gap-2 p-1 bg-indigo-50 border border-indigo-200 rounded-xl items-center pr-2">
-                                        <Button className="bg-white text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold h-10 transition-all shadow-sm" asChild>
-                                            <a href={financeWaveTelecharger.url({ lot: lotCree.lot_wave_id })} target="_blank" rel="noopener noreferrer">
-                                                <FileSpreadsheet className="mr-2" size={18} /> Télécharger Excel
+                                ) : (
+                                    <>
+                                        <Button asChild variant="outline" className="w-full h-12 border-2 border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-50">
+                                            <a href={financeWaveTelecharger.url({ lot: lotWaveId })} target="_blank">
+                                                <FileSpreadsheet className="mr-2" size={18}/> 2. Télécharger Excel (Pour Wave)
                                             </a>
                                         </Button>
                                         <Button 
-                                            onClick={() => {
-                                                if (confirm('Avez-vous bien effectué le transfert sur le portail Wave ? Cette action va solder les tickets et déduire les avances.')) {
-                                                    router.post(financeWaveValider.url({ lot: lotCree.lot_wave_id }), {}, { preserveScroll: true });
-                                                }
-                                            }} 
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 transition-all shadow-md"
+                                            onClick={() => { if(confirm('Avez-vous effectué le transfert sur le portail Wave ? Cette action soldera les tickets.')) router.post(financeWaveValider.url({ lot: lotWaveId }), {}, { preserveScroll: true }) }} 
+                                            className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-black shadow-md"
                                         >
-                                            <CheckCircle2 className="mr-2" size={18} /> Confirmer Transfert
+                                            <CheckCircle2 className="mr-2" size={18}/> 3. Confirmer Transfert Wave
                                         </Button>
-                                    </div>
-                                );
-                            }
+                                    </>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center gap-2 h-12 bg-slate-100 text-slate-500 rounded-xl font-bold text-sm">
+                                <CheckCircle2 size={18} className="text-green-500" /> Tous les transferts Wave sont soldés
+                            </div>
+                        )}
+                    </div>
+
+                </div>
+            )}
+
+            {/* LA LISTE DE PAIE */}
+            <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                    <thead className="bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th className="px-6 py-4">Agent & Mode</th>
+                            <th className="px-6 py-4 text-center">Volume</th>
+                            <th className="px-6 py-4 text-right">Salaire Brut</th>
+                            <th className="px-6 py-4 text-right">Retenue Avance</th>
+                            <th className="px-6 py-4 text-right text-secondary">Net à Payer</th>
+                            <th className="px-6 py-4 text-center">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {etat.tickets.map((ticket: any) => {
+                            // On récupère la dette totale calculée par le backend
+                            const detteTotaleAgent = Number(ticket.personnel?.total_avances_actives || 0);
 
                             return (
-                                <div className="flex items-center gap-2 px-4 h-12 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 font-bold text-sm">
-                                    <CheckCircle2 size={18} className="text-green-500" /> Transferts Wave validés
-                                </div>
+                                <tr key={ticket.id} className="hover:bg-slate-50/80 group">
+                                    <td className="px-6 py-4">
+                                        <div className="font-black text-sm uppercase text-slate-800">
+                                            {ticket.personnel?.nom} {ticket.personnel?.prenom}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                                                {ticket.personnel?.matricule}
+                                            </span>
+                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
+                                                ticket.mode_paiement === 'ESPECES' ? 'text-blue-600 bg-blue-50' : 'text-indigo-600 bg-indigo-50'
+                                            }`}>
+                                                {ticket.mode_paiement}
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <td className="px-6 py-4 text-center font-bold text-slate-600">
+                                        {Number(ticket.quantite_totale).toFixed(2)}
+                                    </td>
+
+                                    <td className="px-6 py-4 text-right font-bold text-slate-400">
+                                        {Number(ticket.montant_brut_cumule).toLocaleString()} F
+                                    </td>
+                                    
+                                    {/* COLONNE RETENUE AVEC INDICATEUR DE DETTE */}
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex flex-col items-end gap-1">
+                                            {editingTicket === ticket.id ? (
+                                                <div className="flex items-center justify-end gap-2 animate-in zoom-in-95">
+                                                    <input 
+                                                        type="number" 
+                                                        min="0"
+                                                        max={detteTotaleAgent}
+                                                        value={retenueValue} 
+                                                        onChange={e => setRetenueValue(Number(e.target.value))} 
+                                                        className="w-24 p-1.5 border-2 border-secondary rounded-lg text-right font-black outline-none focus:ring-2 focus:ring-secondary/20" 
+                                                        autoFocus 
+                                                    />
+                                                    <button onClick={() => handleSaveRetenue(ticket.id)} className="text-green-600 p-1 hover:bg-green-50 rounded"><Save size={18}/></button>
+                                                    <button onClick={() => setEditingTicket(null)} className="text-red-500 p-1 hover:bg-red-50 rounded"><X size={18}/></button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex items-center justify-end gap-2 font-bold text-red-500">
+                                                        - {Number(ticket.montant_deduit_manuel).toLocaleString()} F
+                                                        {isProvisoire && (
+                                                            <button 
+                                                                onClick={() => { 
+                                                                    setEditingTicket(ticket.id); 
+                                                                    setRetenueValue(ticket.montant_deduit_manuel); 
+                                                                }} 
+                                                                className="text-slate-300 hover:text-secondary opacity-0 group-hover:opacity-100 transition-all"
+                                                            >
+                                                                <Edit3 size={16}/>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {/* Affichage de la dette totale pour guider le comptable */}
+                                                    {detteTotaleAgent > 0 && (
+                                                        <span className="text-[9px] font-black bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 uppercase">
+                                                            Dette : {detteTotaleAgent.toLocaleString()} F
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                    
+                                    <td className="px-6 py-4 text-right font-black text-secondary text-lg">
+                                        {Number(ticket.montant_net).toLocaleString()} F
+                                    </td>
+
+                                    <td className="px-6 py-4 text-center">
+                                        <Badge className={`border-0 ${ticket.statut === 'SOLDE' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                                            {ticket.statut}
+                                        </Badge>
+                                    </td>
+                                </tr>
                             );
-                        })()}
-                    </>
-                )}
+                        })}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
