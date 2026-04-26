@@ -57,7 +57,7 @@ class EtatPaiementGenerationService
                         $cumulQuantite = $groupesLignes->sum('quantite');
                         $cumulBrut = $groupesLignes->sum('montant_brut');
                         
-                        $mode = $groupesLignes->last()->moyen_paiement ?? $personnel->preference_paiement ?? 'ESPECES';
+                        $mode = $groupesLignes->last()->moyen_paiement ?? $personnel->preference_paiement ?? 'WAVE';
 
                         $ticket = TicketPaiement::create([
                             'personnel_id' => $personnelId,

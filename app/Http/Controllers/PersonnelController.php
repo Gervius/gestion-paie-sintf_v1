@@ -28,13 +28,13 @@ class PersonnelController extends Controller
             'personnels' => Personnel::with(['siteTravail', 'sectionDefaut', 'localiteDomicile'])
                 ->when($search, function ($query, $search) {
                     $query->where(function ($q) use ($search) {
-                        $q->where('nom', 'like', "%{$search}%")
-                          ->orWhere('prenom', 'like', "%{$search}%")
-                          ->orWhere('matricule', 'like', "%{$search}%");
+                        $q->where('nom', 'ilike', "%{$search}%")
+                          ->orWhere('prenom', 'ilike', "%{$search}%")
+                          ->orWhere('matricule', 'ilike', "%{$search}%");
                     });
                 })
                 ->orderBy('created_at', 'desc')
-                ->paginate(10) // ✅ Limite à 10 pour éviter le scroll excessif
+                ->paginate(10) 
                 ->withQueryString(),
             'filters' => $request->only(['search']),
         ]);
@@ -88,7 +88,7 @@ class PersonnelController extends Controller
 
     public function edit(Personnel $personnel)
     {
-        // ✅ Correction du 403 : On vérifie la permission Spatie directement !
+        
         if (!auth()->user()->can('modifier_personnel') && !auth()->user()->can('*')) {
             abort(403, "Vous n'avez pas l'autorisation de modifier un employé.");
         }
@@ -103,7 +103,7 @@ class PersonnelController extends Controller
 
     public function update(\App\Http\Requests\Personnel\UpdatePersonnelRequest $request, Personnel $personnel)
     {
-        // ✅ Le 403 est géré nativement par UpdatePersonnelRequest
+        
         $personnel->update($request->validated());
 
         return redirect()->route('personnelIndex')

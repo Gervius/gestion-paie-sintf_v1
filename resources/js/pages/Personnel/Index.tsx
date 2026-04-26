@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import type { Personnel, PaginatedData } from '@/types';
-import { personnelIndex, personnelCreate, personnelImportIndex } from '@/routes';
+import { personnelIndex, personnelCreate } from '@/routes';
 
 export default function Index({ personnels }: { personnels: PaginatedData<Personnel> }) {
     const { filters, flash } = usePage<any>().props; 
@@ -59,11 +59,6 @@ export default function Index({ personnels }: { personnels: PaginatedData<Person
                     description={`${personnels.total} employé(s) actif(s) dans le système`} 
                 />
                 <div className="flex gap-3">
-                    <Button variant="outline" className="border-secondary text-secondary hover:bg-secondary/10" asChild>
-                        <Link href={personnelImportIndex().url}>
-                            <UploadIcon className="mr-2 size-4" /> Importer CSV
-                        </Link>
-                    </Button>
                     <Button className="bg-primary hover:bg-primary/90 text-white" asChild>
                         <Link href={personnelCreate().url}>
                             <PlusIcon className="mr-2 size-4" /> Nouvel employé

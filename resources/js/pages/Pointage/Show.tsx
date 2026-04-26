@@ -208,13 +208,30 @@ export default function Show() {
                                         {isPreparation ? (
                                             <div className="flex items-center justify-center bg-gray-50 py-2 rounded-lg border border-dashed border-gray-200"><Lock size={14} className="text-muted-foreground/30" /></div>
                                         ) : isEdite && canSubmit ? (
-                                            <input 
-                                                id={`quantite-${index}`} 
-                                                type="number" min="0" step="0.1" 
-                                                value={localQuantities[ligne.id] !== undefined ? localQuantities[ligne.id] : (ligne.quantite ?? '')} 
-                                                onChange={(e) => setLocalQuantities({...localQuantities, [ligne.id]: e.target.value})} 
-                                                onKeyDown={(e) => handleKeyDown(e, index)} 
-                                                className="w-full text-center py-2 border-2 border-orange-200 rounded-xl font-black text-sm bg-orange-50/30 outline-none focus:bg-white focus:border-orange-500 transition-all" 
+                                            <input
+                                                id={`quantite-${index}`}
+                                                type="number"
+                                                inputMode="decimal"
+                                                min="0"
+                                                step="0.1"
+                                                value={
+                                                    localQuantities[ligne.id] !== undefined
+                                                        ? localQuantities[ligne.id]
+                                                        : (ligne.quantite ?? '')
+                                                }
+                                                onChange={(e) =>
+                                                    setLocalQuantities({...localQuantities,[ligne.id]: e.target.value,})
+                                                }
+                                                onFocus={(e) => {
+                                                    // Si la valeur actuelle est "0", "0.00" ou vide, on sélectionne tout
+                                                    // pour que l'utilisateur puisse taper directement
+                                                    const val = e.target.value;
+                                                    if (val === '0' || val === '0.00' || val === '') {
+                                                        e.target.select();
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => handleKeyDown(e, index)}
+                                                className="w-full text-center py-2 border-2 border-orange-200 rounded-xl font-black text-sm bg-orange-50/30 outline-none focus:bg-white focus:border-orange-500 transition-all"
                                             />
                                         ) : (
                                             <div className="text-center font-black text-primary bg-primary/5 py-2 rounded-lg text-base">{Number(getQuantityValue(ligne)).toFixed(2)}</div>

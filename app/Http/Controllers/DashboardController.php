@@ -70,11 +70,7 @@ class DashboardController extends Controller
         if ($user->can('importer_personnel')) {
             $data['kpis']['employes_actifs'] = Personnel::where('actif', true)->count();
 
-            $data['quickLinks'][] = [
-                'label' => 'Importer du personnel',
-                'url'   => route('personnelImportIndex'),
-                'icon'  => 'Upload',
-            ];
+            
             $data['quickLinks'][] = [
                 'label' => 'Liste du personnel',
                 'url'   => route('personnelIndex'),

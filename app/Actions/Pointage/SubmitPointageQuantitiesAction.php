@@ -35,7 +35,7 @@ class SubmitPointageQuantitiesAction
                     ->update([
                         'quantite'       => $quantite,
                         'montant_brut'   => $quantite * $taux,
-                        'moyen_paiement' => $item['moyen_paiement'] ?? 'ESPECES',
+                        'moyen_paiement' => $item['moyen_paiement'] ?? 'WAVE',
                         'statut_ligne'   => $nouveauStatut
                     ]);
             }

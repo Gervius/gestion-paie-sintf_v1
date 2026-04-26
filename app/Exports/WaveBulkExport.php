@@ -45,20 +45,16 @@ class WaveBulkExport implements FromCollection, WithHeadings, WithMapping, Shoul
         $section = $ticket->etatPaiement->section;
         $site = $personnel->siteTravail; // Récupération propre du site via l'agent
         
-        $moisAnnee = Carbon::parse($ticket->etatPaiement->date_debut)->translatedFormat('F Y');
+        // Récupération de la date de début de l'état de paiement
+        $dateDebut = Carbon::parse($ticket->etatPaiement->date_debut);
+        $mois = $dateDebut->translatedFormat('F');  // Janvier, Février...
+        $annee = $dateDebut->year;
 
-        // Préparation des variables pour le motif
         $nomSection = $section ? strtoupper($section->nom_section) : 'PRODUCTION';
         $nomSite = $site ? strtoupper($site->nom_site) : 'SINTF';
 
-        // Formatage du Motif demandé par le client
-        $motif = sprintf(
-            "Le montant dû %s section %s du site %s du %s",
-            number_format($ticket->montant_net, 0, ',', ' '),
-            $nomSection,
-            $nomSite,
-            $moisAnnee
-        );
+        // Motif court : Section + Mois + Année + Site
+        $motif = sprintf("%s %s %s %s", $nomSection, $mois, $annee, $nomSite);
 
         return [
             // 1. NOM ET PRENOM

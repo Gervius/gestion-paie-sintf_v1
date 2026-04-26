@@ -26,7 +26,7 @@ export default function Create({ localites, sites, sections }: any) {
         localite_domicile_id: '', 
         site_travail_id: '',
         section_defaut_id: '', 
-        preference_paiement: 'ESPECES', 
+        preference_paiement: 'WAVE', 
         est_marie: false
     });
 

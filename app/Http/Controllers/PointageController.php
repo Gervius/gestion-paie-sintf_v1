@@ -220,24 +220,33 @@ class PointageController extends Controller
 
     public function searchPersonnel(Request $request)
     {
-        $query = $request->get('q');
+        $query = trim($request->get('q', ''));
         if (strlen($query) < 2) {
             return response()->json([]);
         }
 
-        // On récupère l'agent avec son site de travail pour la levée de doute
-        return response()->json(
-            Personnel::with('siteTravail:id,nom_site') 
-                ->where('actif', true)
-                ->where(function ($q) use ($query) {
+        $personnels = Personnel::with('siteTravail:id,nom_site')
+            ->where('actif', true)
+            ->where(function ($q) use ($query) {
+                // Si le texte contient un espace, on considère que l'utilisateur a tapé "nom prenom"
+                if (str_contains($query, ' ')) {
+                    [$nom, $prenomDebut] = explode(' ', $query, 2);
+                    $q->where(function ($sub) use ($nom, $prenomDebut) {
+                        $sub->where('nom', 'ilike', "%{$nom}%")
+                            ->where('prenom', 'ilike', "{$prenomDebut}%"); // début de prénom
+                    });
+                } else {
+                    // Recherche classique sur nom, prénom, surnom, matricule
                     $q->where('nom', 'ilike', "%{$query}%")
-                      ->orWhere('prenom', 'ilike', "%{$query}%")
-                      ->orWhere('surnom', 'ilike', "%{$query}%")
-                      ->orWhere('matricule', 'ilike', "%{$query}%");
-                })
-                ->limit(15)
-                ->get(['id', 'matricule', 'nom', 'prenom', 'site_travail_id']) 
-        );
+                    ->orWhere('prenom', 'ilike', "%{$query}%")
+                    ->orWhere('surnom', 'ilike', "%{$query}%")
+                    ->orWhere('matricule', 'ilike', "%{$query}%");
+                }
+            })
+            ->limit(15)
+            ->get(['id', 'matricule', 'nom', 'prenom', 'site_travail_id']);
+
+        return response()->json($personnels);
     }
 
     

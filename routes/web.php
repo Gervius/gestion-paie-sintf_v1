@@ -54,17 +54,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/personnel', [PersonnelController::class, 'index'])->name('personnelIndex');
         Route::get('/personnel/create', [PersonnelController::class, 'create'])->name('personnelCreate');
         Route::post('/personnel', [PersonnelController::class, 'store'])->name('personnelStore');
-        Route::get('/personnel/import', [PersonnelController::class, 'importIndex'])->name('personnelImportIndex');
         Route::get('/personnel/{personnel}/edit', [PersonnelController::class, 'edit'])->name('personnelEdit');
         Route::put('/personnel/{personnel}', [PersonnelController::class, 'update'])->name('personnelUpdate');
         Route::delete('/personnel/{personnel}', [PersonnelController::class, 'destroy'])->name('personnelDestroy');
         Route::get('/personnel/{personnel}/badge', [PersonnelController::class, 'telechargerBadge'])->name('personnelBadge');
         
-        // --- Endpoints API Personnel ---
-        Route::prefix('api')->group(function () {
-            Route::post('/personnel/import/preview', [PersonnelController::class, 'importPreview'])->name('apiPersonnelImportPreview');
-            Route::post('/personnel/import', [PersonnelController::class, 'importStore'])->name('apiPersonnelImportStore');
-        });
 
         // --- Finance & Avances ---
         Route::get('/finance/avances', [FinanceController::class, 'avancesIndex'])->name('financeAvancesIndex');
