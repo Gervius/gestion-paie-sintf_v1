@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Pencil, Trash2, Search, ArrowDownAZ } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
 import Pagination from '@/components/Pagination';
@@ -11,20 +11,40 @@ export default function Index() {
     const [deleting, setDeleting] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
 
+    // N'oublie pas d'importer useRef depuis 'react'
+    const isInitialRender = useRef(true);
+
     useEffect(() => {
+        // Bloque l'exécution au premier chargement de la page
+        if (isInitialRender.current) {
+            isInitialRender.current = false;
+            return;
+        }
+
         const delay = setTimeout(() => {
-            if (searchTerm !== (filters?.search || '')) {
-                router.get(window.location.pathname, { search: searchTerm }, { preserveState: true, replace: true });
-            }
+            router.get(
+                window.location.pathname, 
+                { search: searchTerm }, 
+                { preserveState: true, replace: true }
+            );
         }, 300);
+
         return () => clearTimeout(delay);
     }, [searchTerm]);
 
-    const handleDelete = (id: number) => {
-        if (!confirm('Supprimer cette section ?')) return;
+    // N'oublie pas d'importer useCallback depuis 'react'
+    const handleDelete = useCallback((id: number) => {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) return;
         setDeleting(id);
-        router.delete(referentielsSectionsDestroy.url({ section: id }), { preserveScroll: true, onFinish: () => setDeleting(null) });
-    };
+        
+        // Utilise la route appropriée selon le fichier (rolesDestroy, referentielsSitesDestroy, etc.)
+        router.delete(referentielsSectionsDestroy.url({ section: id }), { 
+            preserveScroll: true, 
+            onFinish: () => setDeleting(null) 
+        });
+    }, []); // <-- Le tableau vide est crucial ici
+
+    
 
     return (
         <div className="p-6 space-y-6 bg-background">

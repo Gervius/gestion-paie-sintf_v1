@@ -27,14 +27,23 @@ class PersonnelController extends Controller
         return Inertia::render('Personnel/Index', [
             'personnels' => Personnel::with(['siteTravail', 'sectionDefaut', 'localiteDomicile'])
                 ->when($search, function ($query, $search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('nom', 'ilike', "%{$search}%")
-                          ->orWhere('prenom', 'ilike', "%{$search}%")
-                          ->orWhere('matricule', 'ilike', "%{$search}%");
-                    });
+                    // Permettre "nom espace début prénom"
+                    if (str_contains($search, ' ')) {
+                        [$nom, $prenomDebut] = explode(' ', $search, 2);
+                        $query->where(function ($q) use ($nom, $prenomDebut) {
+                            $q->where('nom', 'ilike', "%{$nom}%")
+                            ->where('prenom', 'ilike', "{$prenomDebut}%");
+                        });
+                    } else {
+                        $query->where(function ($q) use ($search) {
+                            $q->where('nom', 'ilike', "%{$search}%")
+                            ->orWhere('prenom', 'ilike', "%{$search}%")
+                            ->orWhere('matricule', 'ilike', "%{$search}%");
+                        });
+                    }
                 })
                 ->orderBy('created_at', 'desc')
-                ->paginate(10) 
+                ->paginate(10)
                 ->withQueryString(),
             'filters' => $request->only(['search']),
         ]);
@@ -89,9 +98,7 @@ class PersonnelController extends Controller
     public function edit(Personnel $personnel)
     {
         
-        if (!auth()->user()->can('modifier_personnel') && !auth()->user()->can('*')) {
-            abort(403, "Vous n'avez pas l'autorisation de modifier un employé.");
-        }
+        $this->authorize('update', $personnel);
 
         return Inertia::render('Personnel/Edit', [
             'personnel'  => $personnel->load(['localiteDomicile', 'siteTravail', 'sectionDefaut']),
@@ -112,15 +119,15 @@ class PersonnelController extends Controller
 
     public function destroy(Personnel $personnel)
     {
-        if (!auth()->user()->can('modifier_personnel') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('delete', $personnel);
+        
         $personnel->delete();
         return redirect()->route('personnelIndex')->with('success', 'Employé retiré du système.');
     }
 
     public function telechargerBadge(Personnel $personnel, GenerateIdentificationCardAction $action)
     {
+        $this->authorize('view', $personnel);
         return $action->execute($personnel);
     }
 

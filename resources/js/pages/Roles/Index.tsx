@@ -20,7 +20,7 @@ export default function Index() {
     };
 
     return (
-        <SettingsLayout>
+        <>
             <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
@@ -63,6 +63,6 @@ export default function Index() {
                     </table>
                 </div>
             </div>
-        </SettingsLayout>
+        </>
     );
 }

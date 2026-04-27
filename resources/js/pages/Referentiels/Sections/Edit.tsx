@@ -15,7 +15,7 @@ export default function Edit() {
         unite_mesure_id: section.unite_mesure_id?.toString() ?? '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.SubmitEvent) => {
         e.preventDefault();
         put(referentielsSectionsUpdate.url({ section: section.id }));
     };

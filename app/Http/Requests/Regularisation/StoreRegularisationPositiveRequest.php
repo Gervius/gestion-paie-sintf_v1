@@ -8,7 +8,7 @@ class StoreRegularisationPositiveRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('creer_regularisation') || $this->user()->can('*');
+        return $this->user()->can('regularisations.creer') ;
     }
 
     public function rules(): array

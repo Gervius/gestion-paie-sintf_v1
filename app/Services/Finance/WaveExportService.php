@@ -60,7 +60,10 @@ class WaveExportService
                 throw new \Exception("Ce lot Wave a déjà été validé et soldé.");
             }
 
-            $tickets = $lot->tickets()->where('statut', 'NON_SOLDE')->get();
+            $tickets = TicketPaiement::where('lot_wave_id', $lotId)
+                ->where('statut', 'NON_SOLDE')
+                ->lockForUpdate()
+                ->get();
 
             if ($tickets->isEmpty()) {
                 $lot->update(['statut' => 'VALIDE']);

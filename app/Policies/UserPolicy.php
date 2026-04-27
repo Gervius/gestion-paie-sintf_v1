@@ -8,26 +8,35 @@ class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('gerer_utilisateurs') || $user->can('*');
+        return $user->can('utilisateurs.lire');
+    }
+
+    public function create(User $user): bool
+    {
+        return $user->can('utilisateurs.creer');
     }
 
     public function update(User $user, User $model): bool
     {
-        // Empêche un non-Super Admin de modifier un Super Admin
-        if ($model->hasRole('Super Admin') && !$user->can('*')) {
+        if ($model->hasRole('Super Admin')) {
             return false;
         }
-        return $user->can('gerer_utilisateurs') || $user->can('*');
+        
+        return $user->can('utilisateurs.modifier');
     }
 
     public function delete(User $user, User $model): bool
     {
+        // On ne peut pas se supprimer soi-même
         if ($model->id === $user->id) {
             return false;
         }
-        if ($model->hasRole('Super Admin') && !$user->can('*')) {
+
+        // Un utilisateur normal ne peut pas supprimer un Super Admin
+        if ($model->hasRole('Super Admin')) {
             return false;
         }
-        return $user->can('gerer_utilisateurs') || $user->can('*');
+
+        return $user->can('utilisateurs.supprimer');
     }
 }

@@ -16,7 +16,19 @@ import {
 } from '@/routes';
 
 export default function Show() {
-    const { etat, can } = usePage<any>().props;
+    const { auth, etat, can } = usePage<any>().props;
+    
+    // 1. Détection du Super Admin
+    const userPerms = auth?.user?.permissions || [];
+    const isSuperAdmin = userPerms.includes('*') || auth?.user?.roles?.includes('Super Admin');
+
+    // 2. Application aux actions (Le Super Admin a toujours TRUE)
+    const canValider = isSuperAdmin || userPerms.includes('etats.valider');
+    const canPayerEspeces = isSuperAdmin || userPerms.includes('tickets.payer');
+    const canWaveGenerer = isSuperAdmin || userPerms.includes('tickets.wave.generer');
+    const canWaveValider = isSuperAdmin || userPerms.includes('tickets.wave.valider');
+    const canModifierRetenue = isSuperAdmin || userPerms.includes('avances.modifier') || userPerms.includes('tickets.payer');
+    const canSupprimerEtat = isSuperAdmin || userPerms.includes('etats.supprimer');
 
     const [editingTicket, setEditingTicket] = useState<number | null>(null);
     const [retenueValue, setRetenueValue] = useState<number>(0);
@@ -74,14 +86,17 @@ export default function Show() {
                 </div>
 
                 {/* CONTRÔLES ÉTAPE 1 : VALIDATION */}
+                
                 {isProvisoire && (
                     <div className="flex gap-3 bg-white p-2 rounded-xl shadow-sm border">
-                        <Button onClick={handleDeleteEtat} variant="ghost" className="text-red-500 hover:bg-red-50 font-black">
-                            <Trash2 className="mr-2" size={18}/> Annuler
-                        </Button>
-                        <Button onClick={handleValiderEtat} className="bg-secondary hover:bg-secondary/90 text-white font-black px-6 shadow-md">
-                            <CheckCircle2 className="mr-2" size={18}/> Verrouiller & Passer au Paiement
-                        </Button>
+                        {canSupprimerEtat && (
+                            <Button onClick={handleDeleteEtat} variant="ghost" className="text-red-500 hover:bg-red-50 font-black">Annuler</Button>
+                        )}
+                        {canValider && (
+                            <Button onClick={handleValiderEtat} className="bg-secondary hover:bg-secondary/90 text-white font-black px-6 shadow-md">
+                                <CheckCircle2 className="mr-2" size={18}/> Verrouiller & Passer au Paiement
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>
@@ -105,14 +120,16 @@ export default function Show() {
                                     </a>
                                 </Button>
                                 {/* Remplace la route si ta méthode est différente, j'utilise la route globale du contrôleur */}
-                                <Button 
-                                    onClick={() => { 
-                                        if(confirm('Solder tous les paiements espèces ?')) 
-                                            router.post(financeEtatsPayerMassEspeces.url({ etat: etat.id }), {}, { preserveScroll: true }) 
-                                    }}
-                                >
-                                    <CheckCircle2 className="mr-2" size={18}/> 2. Confirmer Décaissement Espèces
-                                </Button>
+                                {canPayerEspeces && (
+                                    <Button 
+                                        onClick={() => { 
+                                            if(confirm('Solder tous les paiements espèces ?')) 
+                                                router.post(financeEtatsPayerMassEspeces.url({ etat: etat.id }), {}, { preserveScroll: true }) 
+                                        }}
+                                    >
+                                        <CheckCircle2 className="mr-2" size={18}/> 2. Confirmer Décaissement Espèces
+                                    </Button>
+                                )}
                             </div>
                         ) : (
                             <div className="flex items-center justify-center gap-2 h-12 bg-slate-100 text-slate-500 rounded-xl font-bold text-sm">
@@ -131,12 +148,16 @@ export default function Show() {
                         {hasTicketsWave ? (
                             <div className="space-y-3">
                                 {!hasWaveLot ? (
-                                    <Button 
-                                        onClick={() => router.post(financeWaveGenerer.url({ etat: etat.id }), {}, { preserveScroll: true })} 
-                                        className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-md"
-                                    >
-                                        <Send className="mr-2" size={18}/> 1. Préparer le lot Wave
-                                    </Button>
+                                    <>
+                                        {canWaveGenerer && (
+                                            <Button 
+                                                onClick={() => router.post(financeWaveGenerer.url({ etat: etat.id }), {}, { preserveScroll: true })} 
+                                                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-md"
+                                            >
+                                                <Send className="mr-2" size={18}/> 1. Préparer le lot Wave
+                                            </Button>
+                                        )}
+                                    </>
                                 ) : (
                                     <>
                                         <Button asChild variant="outline" className="w-full h-12 border-2 border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-50">
@@ -144,12 +165,14 @@ export default function Show() {
                                                 <FileSpreadsheet className="mr-2" size={18}/> 2. Télécharger Excel (Pour Wave)
                                             </a>
                                         </Button>
-                                        <Button 
-                                            onClick={() => { if(confirm('Avez-vous effectué le transfert sur le portail Wave ? Cette action soldera les tickets.')) router.post(financeWaveValider.url({ lot: lotWaveId }), {}, { preserveScroll: true }) }} 
-                                            className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-black shadow-md"
-                                        >
-                                            <CheckCircle2 className="mr-2" size={18}/> 3. Confirmer Transfert Wave
-                                        </Button>
+                                        {canWaveValider && (
+                                            <Button 
+                                                onClick={() => { if(confirm('Avez-vous effectué le transfert sur le portail Wave ? Cette action soldera les tickets.')) router.post(financeWaveValider.url({ lot: lotWaveId }), {}, { preserveScroll: true }) }} 
+                                                className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-black shadow-md"
+                                            >
+                                                <CheckCircle2 className="mr-2" size={18}/> 3. Confirmer Transfert Wave
+                                            </Button>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -228,7 +251,7 @@ export default function Show() {
                                                 <>
                                                     <div className="flex items-center justify-end gap-2 font-bold text-red-500">
                                                         - {Number(ticket.montant_deduit_manuel).toLocaleString()} F
-                                                        {isProvisoire && (
+                                                        {isProvisoire && detteTotaleAgent > 0 && canModifierRetenue && (
                                                             <button 
                                                                 onClick={() => { 
                                                                     setEditingTicket(ticket.id); 

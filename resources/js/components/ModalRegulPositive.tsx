@@ -19,18 +19,31 @@ export function ModalRegulPositive({ isOpen, onClose, pointage }: { isOpen: bool
     const [selectedAgent, setSelectedAgent] = useState<any>(null);
 
     useEffect(() => {
-        if (searchTerm.length >= 2 && !selectedAgent) {
+        const abortController = new AbortController();
+
+        // Condition adaptée selon le fichier (ex: if (!isOpen) return; pour ModalAjoutAgent)
+        if (searchTerm.length >= 2) { 
             const delay = setTimeout(() => {
-                axios.get(`${apiPersonnelSearch.url()}?q=${encodeURIComponent(searchTerm)}`)
-                     .then(r => setResults(r.data));
+                axios.get(`${apiPersonnelSearch.url()}?q=${encodeURIComponent(searchTerm)}`, {
+                    signal: abortController.signal // <-- Le bouclier anti-fuite
+                })
+                .then(r => setResults(r.data))
+                .catch(err => {
+                    if (!axios.isCancel(err)) console.error(err);
+                });
             }, 300);
-            return () => clearTimeout(delay);
+            return () => {
+                clearTimeout(delay);
+                abortController.abort();
+            };
         } else {
             setResults([]);
         }
-    }, [searchTerm, selectedAgent]);
+        
+        return () => abortController.abort();
+    }, [searchTerm]); 
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.SubmitEvent) => {
         e.preventDefault();
         post(`/api/pointages/${pointage.id}/regul-positive`, {
             preserveScroll: true,

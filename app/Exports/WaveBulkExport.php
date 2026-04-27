@@ -43,55 +43,51 @@ class WaveBulkExport implements FromCollection, WithHeadings, WithMapping, Shoul
     {
         $personnel = $ticket->personnel;
         $section = $ticket->etatPaiement->section;
-        $site = $personnel->siteTravail; // Récupération propre du site via l'agent
+        $site = $personnel->siteTravail; 
         
-        // Récupération de la date de début de l'état de paiement
-        $dateDebut = Carbon::parse($ticket->etatPaiement->date_debut);
-        $mois = $dateDebut->translatedFormat('F');  // Janvier, Février...
+        $dateDebut = \Carbon\Carbon::parse($ticket->etatPaiement->date_debut);
+        $mois = $dateDebut->translatedFormat('F');  
         $annee = $dateDebut->year;
 
         $nomSection = $section ? strtoupper($section->nom_section) : 'PRODUCTION';
         $nomSite = $site ? strtoupper($site->nom_site) : 'SINTF';
 
-        // Motif court : Section + Mois + Année + Site
         $motif = sprintf("%s %s %s %s", $nomSection, $mois, $annee, $nomSite);
 
+        // Récupération de la donnée brute exacte
+        $numeroTelephone = $personnel->tel_compte_wave 
+                           ?? ($personnel->a_telephone_propre ? $personnel->telephone : $personnel->telephone_sc);
+
         return [
-            // 1. NOM ET PRENOM
             strtoupper($personnel->nom . ' ' . $personnel->prenom),
             
-            // 2. TÉLÉPHONE
-            $this->formatPhone($personnel->tel_compte_wave ?? $personnel->telephone),
+            // On injecte le numéro tel qu'il est en base de données
+            $numeroTelephone,
             
-            // 3. MONTANT
             $ticket->montant_net,
-            
-            // 4. MOTIF
             $motif,
-            
-            // 5. CNIB
             $personnel->num_cnib ?? 'N/A',
-            
-            // 6. RÉFÉRENCE
             $ticket->reference_paiement ?? 'TICK-'.$ticket->id
         ];
     }
+    
 
     /**
      * Utilitaire de formatage pour l'opérateur Wave (+226)
      */
+    /**
+     * Utilitaire de formatage pour l'opérateur Wave (Format Local)
+     */
     private function formatPhone($n) 
     {
-        $n = preg_replace('/[^0-9]/', '', (string)$n);
-        
-        if (strlen($n) === 8) {
-            return '+226' . $n;
+        // 1. Ne garder que les chiffres
+        $n = preg_replace('/[^0-9]/', '', (string) $n);
+
+        // 2. Si le numéro commence par 226 et fait plus de 8 caractères, on coupe le 226
+        if (strlen($n) > 8 && str_starts_with($n, '226')) {
+            $n = substr($n, 3);
         }
-        
-        if (strlen($n) === 11 && str_starts_with($n, '226')) {
-            return '+' . $n;
-        }
-        
+
         return $n;
     }
 }

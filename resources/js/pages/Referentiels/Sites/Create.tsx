@@ -6,7 +6,7 @@ import { referentielsSitesStore, referentielsSitesIndex } from '@/routes';
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm({ code_site: '', nom_site: '' });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.SubmitEvent) => {
         e.preventDefault();
         post(referentielsSitesStore.url());
     };

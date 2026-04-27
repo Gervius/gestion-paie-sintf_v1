@@ -9,7 +9,7 @@ class UpdateRoleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('gerer_utilisateurs') || $this->user()->can('*');
+        return $this->user()->can('roles.modifier');
     }
 
     public function rules(): array

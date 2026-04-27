@@ -5,29 +5,30 @@ namespace Database\Seeders;
 use App\Models\Personnel;
 use App\Models\Site;
 use App\Models\Localite;
-use App\Models\Sequence; 
+use App\Models\Sequence;
 use Illuminate\Database\Seeder;
 
 class PersonnelSeeder extends Seeder
 {
     public function run(): void
     {
-        
+        // Création du site (si absent)
         $sitePeni = Site::firstOrCreate(
             ['code_site' => 'PE'],
             ['nom_site' => 'Peni']
         );
 
+        // Liste des 22 employés avec matricules sur 5 chiffres
         $personnels = [
             [
-                'matricule'           => 'PE-2026-0001',
+                'matricule'           => 'PE-2026-00001',
                 'nom'                 => 'OUATTARA',
                 'prenom'              => 'OUMAR',
                 'surnom'              => null,
                 'niveau_etude'        => null,
                 'telephone'           => '64252049',
                 'tel_compte_wave'     => '64252049',
-                'localite_code'       => '106', // PENI
+                'localite_code'       => '106',
                 'num_acte_naissance'  => 'N°775 du 06/07/2005',
                 'date_naissance'      => '1999-12-31',
                 'lieu_naissance'      => 'TIEN',
@@ -41,7 +42,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0002',
+                'matricule'           => 'PE-2026-00002',
                 'nom'                 => 'OUATTARA',
                 'prenom'              => 'KARIM',
                 'surnom'              => null,
@@ -62,7 +63,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0003',
+                'matricule'           => 'PE-2026-00003',
                 'nom'                 => 'BAADHIO',
                 'prenom'              => 'SALIFOU',
                 'surnom'              => null,
@@ -83,7 +84,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0004',
+                'matricule'           => 'PE-2026-00004',
                 'nom'                 => 'OUATTARA',
                 'prenom'              => 'ABDOULAYE',
                 'surnom'              => null,
@@ -104,7 +105,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0005',
+                'matricule'           => 'PE-2026-00005',
                 'nom'                 => 'BARRO',
                 'prenom'              => 'FOUSSENI',
                 'surnom'              => null,
@@ -125,7 +126,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0006',
+                'matricule'           => 'PE-2026-00006',
                 'nom'                 => 'BOLY',
                 'prenom'              => 'ALY',
                 'surnom'              => null,
@@ -146,7 +147,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0007',
+                'matricule'           => 'PE-2026-00007',
                 'nom'                 => 'SIDIBE',
                 'prenom'              => 'OROKIATOU',
                 'surnom'              => 'S/C DIALLO DAOUDA',
@@ -167,7 +168,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0008',
+                'matricule'           => 'PE-2026-00008',
                 'nom'                 => 'DIANDE',
                 'prenom'              => 'FADIMA',
                 'surnom'              => null,
@@ -188,7 +189,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0009',
+                'matricule'           => 'PE-2026-00009',
                 'nom'                 => 'YARO',
                 'prenom'              => 'RAMATA',
                 'surnom'              => null,
@@ -209,7 +210,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0010',
+                'matricule'           => 'PE-2026-00010',
                 'nom'                 => 'SANFO',
                 'prenom'              => 'LATIFATA',
                 'surnom'              => null,
@@ -230,7 +231,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0011',
+                'matricule'           => 'PE-2026-00011',
                 'nom'                 => 'TRAORE',
                 'prenom'              => 'TENE',
                 'surnom'              => null,
@@ -251,7 +252,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0012',
+                'matricule'           => 'PE-2026-00012',
                 'nom'                 => 'CISSE',
                 'prenom'              => 'INSITA',
                 'surnom'              => null,
@@ -272,7 +273,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0013',
+                'matricule'           => 'PE-2026-00013',
                 'nom'                 => 'SAWADOGO',
                 'prenom'              => 'FATIMATA',
                 'surnom'              => null,
@@ -293,7 +294,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0014',
+                'matricule'           => 'PE-2026-00014',
                 'nom'                 => 'OUATTARA',
                 'prenom'              => 'KOUROUBI',
                 'surnom'              => null,
@@ -314,7 +315,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0015',
+                'matricule'           => 'PE-2026-00015',
                 'nom'                 => 'SIDIBE',
                 'prenom'              => 'DJENEBA',
                 'surnom'              => null,
@@ -335,7 +336,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0016',
+                'matricule'           => 'PE-2026-00016',
                 'nom'                 => 'SOMA',
                 'prenom'              => 'MINATA',
                 'surnom'              => null,
@@ -356,7 +357,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0017',
+                'matricule'           => 'PE-2026-00017',
                 'nom'                 => 'OUATTARA',
                 'prenom'              => 'KADI',
                 'surnom'              => null,
@@ -377,7 +378,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0018',
+                'matricule'           => 'PE-2026-00018',
                 'nom'                 => 'MILLOGO',
                 'prenom'              => 'AMINATA',
                 'surnom'              => null,
@@ -398,7 +399,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0019',
+                'matricule'           => 'PE-2026-00019',
                 'nom'                 => 'SANOU',
                 'prenom'              => 'SOU EDITH',
                 'surnom'              => null,
@@ -419,7 +420,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0020',
+                'matricule'           => 'PE-2026-00020',
                 'nom'                 => 'NEYA',
                 'prenom'              => 'RISSANATA',
                 'surnom'              => null,
@@ -440,7 +441,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0021',
+                'matricule'           => 'PE-2026-00021',
                 'nom'                 => 'DIALLO',
                 'prenom'              => 'HAOUA',
                 'surnom'              => null,
@@ -461,7 +462,7 @@ class PersonnelSeeder extends Seeder
                 'classification'      => 'TEMPORAIRE',
             ],
             [
-                'matricule'           => 'PE-2026-0022',
+                'matricule'           => 'PE-2026-00022',
                 'nom'                 => 'BANDE',
                 'prenom'              => 'BINTOU',
                 'surnom'              => null,
@@ -484,14 +485,11 @@ class PersonnelSeeder extends Seeder
         ];
 
         foreach ($personnels as $data) {
-            $localite = Localite::where('code_localite', $data['localite_code'])->first();
-
-            if (!$localite) {
-                $localite = Localite::firstOrCreate(
-                    ['code_localite' => $data['localite_code']],
-                    ['nom_localite' => $data['lieu_naissance'] ?? 'Inconnu']
-                );
-            }
+            // Création ou récupération de la localité
+            $localite = Localite::firstOrCreate(
+                ['code_localite' => $data['localite_code']],
+                ['nom_localite' => $data['lieu_naissance'] ?? 'Inconnu']
+            );
 
             Personnel::updateOrCreate(
                 ['matricule' => $data['matricule']],
@@ -516,16 +514,22 @@ class PersonnelSeeder extends Seeder
                     'site_travail_id'       => $sitePeni->id,
                     'section_defaut_id'     => null,
                     'actif'                 => true,
-                    'preference_paiement'   => 'ESPECES',
+                    'preference_paiement'   => 'WAVE',   // Paiement par défaut WAVE
                     'classification'        => $data['classification'],
                 ]
             );
         }
 
-        
+               // Récupération du plus grand numéro de matricule en PHP (compatible tout SGBD)
+        $maxNum = Personnel::pluck('matricule')->map(function ($matricule) {
+            $parts = explode('-', $matricule);
+            return (int) end($parts);
+        })->max() ?? 0;
+
+        // Mise à jour du compteur global (une seule ligne id=1)
         Sequence::updateOrCreate(
-            ['site_code' => 'PE', 'annee' => 2026],
-            ['dernier_numero' => 22] 
+            ['id' => 1],
+            ['dernier_numero' => $maxNum]
         );
     }
 }

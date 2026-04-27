@@ -12,7 +12,6 @@ class SubmitPointageQuantitiesAction
     {
         DB::transaction(function () use ($pointage, $quantities) {
             
-            // 1. VERROUILLAGE ANTI-DOUBLE CLIC (Row Level Locking)
             $lockedPointage = Pointage::where('id', $pointage->id)->lockForUpdate()->first();
 
             if (!in_array($lockedPointage->statut, ['PREPARATION', 'EDITE_TERRAIN'])) {
@@ -21,27 +20,54 @@ class SubmitPointageQuantitiesAction
 
             $taux = $lockedPointage->taux_applique;
             $lignesTraiteesIds = [];
+            
+            // 1. Récupérer toutes les lignes concernées en 1 seule requête
+            $lignesExistant = PointageLigne::whereIn('id', array_column($quantities, 'ligne_id'))
+                                           ->where('pointage_id', $lockedPointage->id)
+                                           ->get()
+                                           ->keyBy('id');
 
-            // 2. MISE À JOUR DES QUANTITÉS SAISIES
+            $upsertData = [];
+
+            // 2. Préparer le tableau de données en mémoire (ultra-rapide)
             foreach ($quantities as $item) {
+                $ligne = $lignesExistant->get($item['ligne_id']);
+                if (!$ligne) continue;
+
                 $quantite = (float) $item['quantite'];
-                $lignesTraiteesIds[] = $item['ligne_id'];
-
-                // Règle Métier : Si l'agent a produit > 0, il est EN_ATTENTE de paie. Sinon, il est marqué ABSENT.
                 $nouveauStatut = $quantite > 0 ? 'EN_ATTENTE' : 'ABSENT';
+                
+                // Calcul du montant
+                $montantBrut = $quantite * $taux;
 
-                PointageLigne::where('id', $item['ligne_id'])
-                    ->where('pointage_id', $lockedPointage->id)
-                    ->update([
-                        'quantite'       => $quantite,
-                        'montant_brut'   => $quantite * $taux,
-                        'moyen_paiement' => $item['moyen_paiement'] ?? 'WAVE',
-                        'statut_ligne'   => $nouveauStatut
-                    ]);
+                $upsertData[] = [
+                    'id'                  => $ligne->id,
+                    'pointage_id'         => $ligne->pointage_id,
+                    'personnel_id'        => $ligne->personnel_id,
+                    'matricule_personnel' => $ligne->matricule_personnel,
+                    'quantite'            => $quantite,
+                    'montant_brut'        => $montantBrut,
+                    // 👇 On force l'injection des centimes dans la BDD pour l'upsert
+                    'montant_brut_centimes' => (int) round($montantBrut * 100), 
+                    'type_ligne'          => $ligne->type_ligne,
+                    'statut_ligne'        => $nouveauStatut,
+                    'moyen_paiement'      => $item['moyen_paiement'] ?? 'WAVE',
+                ];
+                
+                $lignesTraiteesIds[] = $ligne->id;
             }
 
-            // 3. NETTOYAGE DES LIGNES ORPHELINES (Sécurité)
-            // Tous les agents présents sur la feuille mais qui n'ont pas été envoyés par le Frontend sont passés en ABSENT
+            // Plus bas, dans l'exécution de l'Upsert, ajoute la colonne pour qu'elle soit mise à jour :
+            if (!empty($upsertData)) {
+                PointageLigne::upsert(
+                    $upsertData,
+                    ['id'],
+                    
+                    ['quantite', 'montant_brut', 'montant_brut_centimes', 'statut_ligne', 'moyen_paiement'] 
+                );
+            }
+
+            // 4. Nettoyage des lignes orphelines (agents présents sur feuille mais non soumis)
             if (!empty($lignesTraiteesIds)) {
                 PointageLigne::where('pointage_id', $lockedPointage->id)
                     ->whereNotIn('id', $lignesTraiteesIds)
@@ -52,11 +78,8 @@ class SubmitPointageQuantitiesAction
                     ]);
             }
 
-            // 4. CLÔTURE DÉFINITIVE
-            $lockedPointage->update([
-                'statut' => 'CLOTURE'
-            ]);
-            
+            // 5. Clôture définitive du pointage
+            $lockedPointage->update(['statut' => 'CLOTURE']);
         });
     }
 }

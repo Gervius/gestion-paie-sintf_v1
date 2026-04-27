@@ -25,8 +25,14 @@ import { ModalRegulNegative } from '@/components/ModalRegulNegative';
 export default function Show() {
     const { pointage, canEdit, canSubmit, taux, flash, auth } = usePage<any>().props;
     
-    // --- LOGIQUE DE DROITS & STATUTS ---
-    const canCreateRegul = auth.user?.permissions?.includes('creer_regularisation') || auth.user?.permissions?.includes('*');
+    // 1. Détection du Super Admin
+    const userPerms = auth?.user?.permissions || [];
+    const userRoles = auth?.user?.roles || [];
+    const isSuperAdmin = userPerms.includes('*') || userRoles.includes('Super Admin');
+
+    // 2. Sécurisation des boutons d'action
+    const canReopen = isSuperAdmin || userPerms.includes('pointages.rouvrir');
+    const canCreateRegul = isSuperAdmin || userPerms.includes('regularisations.creer');
     
     // On considère la fiche "Soldée" si au moins une ligne est liée à un ticket de paie
     const isSolder = pointage.lignes.some((l: any) => l.ticket_paiement_id !== null);
@@ -268,8 +274,10 @@ export default function Show() {
                     )}
                     
                     {/* RÉOUVERTURE : Seulement si la fiche est clôturée MAIS non encore soldée */}
-                    {isCloture && !isSolder && canEdit && (
-                        <Button onClick={handleAnnulerCloture} variant="outline" className="border-orange-200 text-orange-700 hover:bg-orange-50 font-black h-12 px-6 rounded-xl"><RotateCcw size={20} className="mr-2" /> Réouvrir pour correction</Button>
+                    {isCloture && !isSolder && canReopen && (
+                        <Button onClick={handleAnnulerCloture} variant="outline" className="...">
+                            <RotateCcw size={20} className="mr-2" /> Réouvrir pour correction
+                        </Button>
                     )}
                 </div>
                 

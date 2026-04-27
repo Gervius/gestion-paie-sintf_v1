@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Pencil, Trash2, MapPin, Search, ArrowDownAZ } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
 import Pagination from '@/components/Pagination';
@@ -11,7 +11,15 @@ export default function Index() {
     const [deleting, setDeleting] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
 
+    const isInitialRender = useRef(true);
+
     useEffect(() => {
+        // 2. On bloque le premier déclenchement
+        if (isInitialRender.current) {
+            isInitialRender.current = false;
+            return;
+        }
+
         const delay = setTimeout(() => {
             if (searchTerm !== (filters?.search || '')) {
                 router.get(window.location.pathname, { search: searchTerm }, { preserveState: true, replace: true });
@@ -20,11 +28,20 @@ export default function Index() {
         return () => clearTimeout(delay);
     }, [searchTerm]);
 
-    const handleDelete = (id: number) => {
-        if (!confirm('Supprimer ce village ?')) return;
+    // N'oublie pas d'importer useCallback depuis 'react' en haut du fichier
+    
+    const handleDelete = useCallback((id: number) => {
+        if (!confirm('Supprimer cet élément ?')) return;
         setDeleting(id);
-        router.delete(referentielsLocalitesDestroy.url({ localite: id }), { preserveScroll: true, onFinish: () => setDeleting(null) });
-    };
+        
+        // Utilise ta route spécifique ici (referentielsProduitsDestroy, referentielsLocalitesDestroy, ou permissionsDestroy)
+        router.delete(referentielsLocalitesDestroy.url({ localite: id }), { 
+            preserveScroll: true, 
+            onFinish: () => setDeleting(null) 
+        });
+    }, []); // Le tableau vide [] est très important !
+
+    
 
     return (
         <div className="p-6 space-y-6 bg-background">

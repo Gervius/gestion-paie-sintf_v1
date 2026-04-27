@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Observers\AvanceObserver;
+use App\Concerns\HasCentimesAttributes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -18,7 +19,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[ObservedBy(AvanceObserver::class)]
 class Avance extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity ;
+    use HasFactory, SoftDeletes, HasCentimesAttributes, LogsActivity ;
 
     protected $fillable = [
         'personnel_id', 'regularisation_source_id', 'montant_initial',
@@ -43,5 +44,23 @@ class Avance extends Model
             ->logAll()
             ->logOnlyDirty()
         ;
+    }
+
+    public function getMontantInitialAttribute(): ?float
+    {
+        return $this->getFrancsFromCentimes('montant_initial_centimes', 'montant_initial');
+    }
+    public function setMontantInitialAttribute($value): void
+    {
+        $this->setCentimesFromFrancs($value, 'montant_initial_centimes', 'montant_initial');
+    }
+
+    public function getSoldeRestantAttribute(): ?float
+    {
+        return $this->getFrancsFromCentimes('solde_restant_centimes', 'solde_restant');
+    }
+    public function setSoldeRestantAttribute($value): void
+    {
+        $this->setCentimesFromFrancs($value, 'solde_restant_centimes', 'solde_restant');
     }
 }

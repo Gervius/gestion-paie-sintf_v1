@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Pencil, Trash2, Package, Search, ArrowDownAZ } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
 import Pagination from '@/components/Pagination';
@@ -11,7 +11,15 @@ export default function Index() {
     const [deleting, setDeleting] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
 
+    const isInitialRender = useRef(true);
+
     useEffect(() => {
+        // 2. On bloque le premier déclenchement
+        if (isInitialRender.current) {
+            isInitialRender.current = false;
+            return;
+        }
+
         const delay = setTimeout(() => {
             if (searchTerm !== (filters?.search || '')) {
                 router.get(window.location.pathname, { search: searchTerm }, { preserveState: true, replace: true });

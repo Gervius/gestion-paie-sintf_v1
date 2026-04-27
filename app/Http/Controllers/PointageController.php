@@ -108,6 +108,8 @@ class PointageController extends Controller
 
     public function show(Pointage $pointage)
     {
+        // Vérification du droit de visualisation
+        $this->authorize('view', $pointage);
         
         $pointage->load([
             'site',
@@ -116,34 +118,42 @@ class PointageController extends Controller
             'lignes.personnel'
         ]);
 
+        $user = auth()->user();
+        $canEdit = $user->can('pointages.modifier') && in_array($pointage->statut, ['PREPARATION', 'EDITE_TERRAIN']);
+        $canSubmit = $user->can('pointages.soumettre') && $pointage->statut === 'EDITE_TERRAIN';
+        
         return Inertia::render('Pointage/Show', [
             'pointage' => $pointage,
-            'canEdit' => $this->authorize('update', $pointage)->allowed(),
-            'canSubmit' => $this->authorize('submitQuantities', $pointage)->allowed(),
+            'canEdit' => $canEdit,
+            'canSubmit' => $canSubmit,
             'taux' => $pointage->taux_applique,
         ]);
     }
 
     public function addAgent(Pointage $pointage, AddAgentRequest $request, ManagePointageListAction $action)
     {
+        $this->authorize('update', $pointage);
         $action->addAgent($pointage, $request->input('personnel_id'));
         return back()->with('success', 'Agent ajouté avec succès.');
     }
 
     public function removeAgent(Pointage $pointage, $ligneId, ManagePointageListAction $action)
     {
+        $this->authorize('update', $pointage);
         $action->removeAgent($pointage, $ligneId);
         return back()->with('success', 'Agent retiré de la liste.');
     }
 
     public function resetToDefault(Pointage $pointage, ManagePointageListAction $action)
     {
+        $this->authorize('update', $pointage);
         $action->resetToDefault($pointage);
         return back()->with('success', 'Liste réinitialisée aux agents par défaut.');
     }
 
     public function clearAll(Pointage $pointage, ManagePointageListAction $action)
     {
+        $this->authorize('update', $pointage);
         try {
             $action->clearAll($pointage);
             return back()->with('success', 'Liste vidée.');
@@ -154,18 +164,7 @@ class PointageController extends Controller
 
     public function generatePdf(Pointage $pointage, GeneratePointagePdfAction $action)
     {
-        try {
-            return $action->execute($pointage);
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Génère l'export Excel pour la comptabilité
-     */
-    public function exportExcel(Pointage $pointage, \App\Actions\Pointage\ExportPointageExcelAction $action)
-    {
+        $this->authorize('view', $pointage);
         try {
             return $action->execute($pointage);
         } catch (\Exception $e) {
@@ -200,7 +199,7 @@ class PointageController extends Controller
      */
     public function annulerCloture(Pointage $pointage)
     {
-        $this->authorize('update', $pointage);
+        $this->authorize('reopen', $pointage);
 
         // Sécurité : On vérifie si une ligne est déjà liée à la Finance
         $dejaEnPaie = $pointage->lignes()->whereNotNull('ticket_paiement_id')->exists();
@@ -220,6 +219,7 @@ class PointageController extends Controller
 
     public function searchPersonnel(Request $request)
     {
+        $this->authorize('viewAny', Personnel::class);
         $query = trim($request->get('q', ''));
         if (strlen($query) < 2) {
             return response()->json([]);

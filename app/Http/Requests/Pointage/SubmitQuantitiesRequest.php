@@ -8,7 +8,7 @@ class SubmitQuantitiesRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('cloturer_pointage') || $this->user()->can('*');
+        return $this->user()->can('pointages.soumettre');
     }
 
     public function rules(): array

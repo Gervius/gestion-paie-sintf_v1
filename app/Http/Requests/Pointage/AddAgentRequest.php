@@ -8,7 +8,7 @@ class AddAgentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('modifier_brouillon') || $this->user()->can('*');
+        return $this->user()->can('pointages.modifier');
     }
 
     public function rules(): array

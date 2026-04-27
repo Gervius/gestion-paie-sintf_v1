@@ -25,17 +25,29 @@ export function ModalAjoutAgent({ isOpen, onClose, pointageId, lignesExistantes 
 
     // Recherche avec un léger délai (Debounce) pour ne pas saturer le serveur
     useEffect(() => {
-        if (!isOpen) return;
-        const delay = setTimeout(() => {
-            if (searchTerm.length >= 2) {
-                axios.get(`${apiPersonnelSearch.url()}?q=${encodeURIComponent(searchTerm)}`)
-                     .then(r => setResults(r.data));
-            } else {
-                setResults([]);
-            }
-        }, 300);
-        return () => clearTimeout(delay);
-    }, [searchTerm, isOpen]);
+        const abortController = new AbortController();
+
+        // Condition adaptée selon le fichier (ex: if (!isOpen) return; pour ModalAjoutAgent)
+        if (searchTerm.length >= 2) { 
+            const delay = setTimeout(() => {
+                axios.get(`${apiPersonnelSearch.url()}?q=${encodeURIComponent(searchTerm)}`, {
+                    signal: abortController.signal // <-- Le bouclier anti-fuite
+                })
+                .then(r => setResults(r.data))
+                .catch(err => {
+                    if (!axios.isCancel(err)) console.error(err);
+                });
+            }, 300);
+            return () => {
+                clearTimeout(delay);
+                abortController.abort();
+            };
+        } else {
+            setResults([]);
+        }
+        
+        return () => abortController.abort();
+    }, [searchTerm]); // Ajoute isOpen ou selectedAgent dans les dépendances selon le fichier
 
     const handleAdd = (personnelId: number) => {
         setLoadingId(personnelId);

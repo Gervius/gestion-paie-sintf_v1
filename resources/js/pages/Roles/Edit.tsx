@@ -11,7 +11,7 @@ export default function Edit() {
         permissions: selectedPermissions || [] 
     });
 
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); put(rolesUpdate.url({ role: role.id })); };
+    const handleSubmit = (e: React.SubmitEvent) => { e.preventDefault(); put(rolesUpdate.url({ role: role.id })); };
 
     const togglePermission = (permName: string, checked: boolean) => {
         if (checked) {
@@ -24,7 +24,7 @@ export default function Edit() {
     const isSuperAdmin = role.name === 'Super Admin';
 
     return (
-        <SettingsLayout>
+        <>
             <div className="max-w-4xl mx-auto p-6 space-y-6">
                 <h1 className="text-2xl font-bold text-gray-900">Modifier le Rôle : {role.name}</h1>
                 <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border border-border shadow-sm space-y-6">
@@ -81,6 +81,6 @@ export default function Edit() {
                     </div>
                 </form>
             </div>
-        </SettingsLayout>
+        </>
     );
 }

@@ -1,14 +1,28 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { PlusIcon, UploadIcon, Search, CheckCircle2, Pencil, Trash2, Download } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import type { Personnel, PaginatedData } from '@/types';
-import { personnelIndex, personnelCreate } from '@/routes';
+import { personnelIndex, personnelCreate, personnelDestroy } from '@/routes';
 
 export default function Index({ personnels }: { personnels: PaginatedData<Personnel> }) {
-    const { filters, flash } = usePage<any>().props; 
+    
+    const { auth, filters, flash } = usePage<any>().props;
+    
+    // 1. On sécurise la récupération des permissions et des rôles
+    const userPerms = auth?.user?.permissions || [];
+    const userRoles = auth?.user?.roles || []; // Optionnel, selon la façon dont tu partages les infos via Inertia
+
+    // 2. On recrée la logique du Gate::before côté React
+    const isSuperAdmin = userPerms.includes('*') || userRoles.includes('Super Admin');
+
+    // 3. On applique la vérification globale + spécifique
+    const canCreate = isSuperAdmin || userPerms.includes('personnels.creer');
+    const canUpdate = isSuperAdmin || userPerms.includes('personnels.modifier');
+    const canDelete = isSuperAdmin || userPerms.includes('personnels.supprimer');
+    
     const [search, setSearch] = useState(filters?.search || '');
     const [deleting, setDeleting] = useState<number | null>(null);
     
@@ -30,16 +44,17 @@ export default function Index({ personnels }: { personnels: PaginatedData<Person
         return () => clearTimeout(delay);
     }, [search]);
 
-    const handleDelete = (id: number) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer définitivement cet employé ?')) return;
+
+    
+    // Remplace ton handleDelete actuel par celui-ci :
+    const handleDelete = useCallback((id: number) => {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cet employé ?')) return;
         setDeleting(id);
-        
-        // Utilisation du routeur Inertia pour la suppression
-        router.delete(`/personnel/${id}`, {
+        router.delete(personnelDestroy.url({ personnel: id }), {
             preserveScroll: true,
-            onFinish: () => setDeleting(null),
+            onFinish: () => setDeleting(null)
         });
-    };
+    }, []); // Le tableau de dépendances vide garantit que la fonction n'est jamais recréée
 
     return (
         <div className="flex h-full flex-1 flex-col gap-6 p-6 bg-background">
@@ -59,11 +74,13 @@ export default function Index({ personnels }: { personnels: PaginatedData<Person
                     description={`${personnels.total} employé(s) actif(s) dans le système`} 
                 />
                 <div className="flex gap-3">
-                    <Button className="bg-primary hover:bg-primary/90 text-white" asChild>
-                        <Link href={personnelCreate().url}>
-                            <PlusIcon className="mr-2 size-4" /> Nouvel employé
-                        </Link>
-                    </Button>
+                    {canCreate && (
+                        <Button className="bg-primary hover:bg-primary/90 text-white" asChild>
+                            <Link href={personnelCreate().url}>
+                                <PlusIcon className="mr-2 size-4" /> Nouvel employé
+                            </Link>
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -122,15 +139,11 @@ export default function Index({ personnels }: { personnels: PaginatedData<Person
                                     <td className="px-4 py-4 text-right">
                                     <div className="flex justify-end gap-2">
                                         {/* Modifier */}
-                                        <Link
-                                        href={`/personnel/${p.id}/edit`}
-                                        className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                                        title="Modifier l'employé"
-                                        >
-                                        <Pencil size={18} />
-                                        </Link>
-
-                                        {/* Télécharger Badge */}
+                                        {canUpdate && (
+                                            <Link href={`/personnel/${p.id}/edit`} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Modifier l'employé">
+                                                <Pencil size={18} />
+                                            </Link>
+                                        )}
                                         <a
                                             href={`/personnel/${p.id}/badge`}
                                             target="_blank"
@@ -140,16 +153,11 @@ export default function Index({ personnels }: { personnels: PaginatedData<Person
                                         >
                                             <Download size={18} />
                                         </a>
-
-                                        {/* Supprimer */}
-                                        <button
-                                        onClick={() => handleDelete(p.id)}
-                                        disabled={deleting === p.id}
-                                        className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
-                                        title="Supprimer l'employé"
-                                        >
-                                        <Trash2 size={18} />
-                                        </button>
+                                        {canDelete && (
+                                            <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50" title="Supprimer l'employé">
+                                                <Trash2 size={18} />
+                                            </button>
+                                        )}
                                     </div>
                                     </td>
                                 </tr>

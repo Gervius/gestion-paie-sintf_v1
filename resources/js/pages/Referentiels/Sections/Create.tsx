@@ -11,7 +11,7 @@ export default function Create() {
         taux_rendement: '', produit_id: '', unite_mesure_id: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.SubmitEvent) => {
         e.preventDefault();
         post(referentielsSectionsStore.url());
     };

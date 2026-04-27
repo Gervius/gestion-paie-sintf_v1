@@ -50,22 +50,31 @@ class PaiementEspecesService
         });
     }
 
+    
     /**
-     * Paiement de masse pour l'état complet
+     * Paiement de masse pour l'état complet (SÉCURISÉ)
      */
     public function payerEtatComplet($etatId): int
     {
-        $tickets = TicketPaiement::where('etat_paiement_id', $etatId)
-            ->where('mode_paiement', 'ESPECES')
-            ->where('statut', 'NON_SOLDE')
-            ->get();
+        return DB::transaction(function () use ($etatId) {
+            // lockForUpdate() est crucial ici pour éviter que quelqu'un d'autre
+            // (ex: un autre caissier ou un script) ne modifie ces tickets en même temps.
+            $tickets = TicketPaiement::where('etat_paiement_id', $etatId)
+                ->where('mode_paiement', 'ESPECES')
+                ->where('statut', 'NON_SOLDE')
+                ->lockForUpdate() 
+                ->get();
 
-        $count = 0;
-        foreach ($tickets as $ticket) {
-            $this->payer($ticket);
-            $count++;
-        }
-        return $count;
+            $count = 0;
+            foreach ($tickets as $ticket) {
+                // Ta méthode payer() gère déjà sa propre logique de retenue
+                // mais elle sera englobée dans cette transaction parente !
+                $this->payer($ticket);
+                $count++;
+            }
+            
+            return $count;
+        });
     }
 
     /**

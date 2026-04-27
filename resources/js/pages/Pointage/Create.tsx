@@ -14,7 +14,7 @@ export default function Create() {
         type_pointage: 'RENDEMENT',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.SubmitEvent) => {
         e.preventDefault();
         post(pointageStore.url());
     };

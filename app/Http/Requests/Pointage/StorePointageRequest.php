@@ -9,7 +9,8 @@ class StorePointageRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('creer_pointage') || $this->user()->can('*');
+        // On retourne true ici, car la sécurité est gérée par la Policy dans le Controller
+        return true; 
     }
 
     public function rules(): array

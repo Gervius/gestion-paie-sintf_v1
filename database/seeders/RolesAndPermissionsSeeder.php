@@ -10,89 +10,129 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Réinitialiser le cache des permissions
+        // Réinitialise le cache
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Liste des permissions
+        // --- PERMISSIONS (français) ---
         $permissions = [
-            // Permission spéciale Super Admin
             '*',
 
-            // Pointage
-            'creer_pointage',
-            'modifier_brouillon',
-            'cloturer_pointage',
-            'supprimer_pointage', 
-
-            // Finance & Paie
-            'generer_etat_paiement', 
-            'valider_etat_paiement',
-            'voir_ticket_valide',
-            'payer_especes',
-            'generer_lot_wave',
-            'voir_consolidation_paie',
-            'gerer_avances',         
-
-            // Régularisation
-            'creer_regularisation',
+            // Pointages
+            'pointages.creer',
+            'pointages.lire',
+            'pointages.modifier',
+            'pointages.supprimer',
+            'pointages.soumettre',
+            'pointages.rouvrir',
 
             // Personnel
-            'importer_personnel',
-            'modifier_personnel',
+            'personnels.creer',
+            'personnels.lire',
+            'personnels.modifier',
+            'personnels.supprimer',
+            'personnels.importer',
 
             // Référentiels
-            'gerer_referentiels',
+            'sections.creer', 'sections.lire', 'sections.modifier', 'sections.supprimer',
+            'produits.creer', 'produits.lire', 'produits.modifier', 'produits.supprimer',
+            'sites.creer', 'sites.lire', 'sites.modifier', 'sites.supprimer',
+            'localites.creer', 'localites.lire', 'localites.modifier', 'localites.supprimer',
 
-            // Administration
-            'gerer_utilisateurs',
-            'acceder_dashboard_admin',
+            // Utilisateurs & Rôles
+            'utilisateurs.creer', 'utilisateurs.lire', 'utilisateurs.modifier', 'utilisateurs.supprimer',
+            'roles.creer', 'roles.lire', 'roles.modifier', 'roles.supprimer',
+            'societe.modifier', 'societe.lire',
+
+            // Finance
+            'etats.creer',
+            'etats.lire',
+            'etats.valider',
+            'etats.supprimer',
+            'tickets.payer',
+            'tickets.wave.generer',
+            'tickets.wave.valider',
+            'tickets.lire',
+            'avances.creer',
+            'avances.lire',
+            'avances.modifier',
+            'avances.supprimer',
+
+            // Régularisations
+            'regularisations.creer',
+            'regularisations.lire',
         ];
 
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['name' => $perm]);
         }
 
-        // Création des rôles avec leurs permissions
+        // --- RÔLES ---
         $roles = [
-            'Super Admin'    => ['*'],
-            
-            'Pointeur'       => [
-                'creer_pointage', 'modifier_brouillon', 'cloturer_pointage', 'supprimer_pointage'
+            'Super Admin' => ['*'],
+
+            'Pointeur' => [
+                'pointages.creer',
+                'pointages.lire',
+                'pointages.modifier',
+                'pointages.soumettre',
+                'pointages.rouvrir',
+                'regularisations.creer',
+                'regularisations.lire',
+                'personnels.lire',
             ],
-            
-            'Chef de Section'=> [
-                'generer_etat_paiement', 'valider_etat_paiement', 'creer_regularisation'
+
+            'Chef de Section' => [
+                'pointages.creer',
+                'pointages.lire',
+                'pointages.modifier',
+                'pointages.soumettre',
+                'pointages.rouvrir',
+                'pointages.supprimer',
+                'regularisations.creer',
+                'regularisations.lire',
+                'personnels.creer',
+                'personnels.lire',
+                'personnels.modifier',
+                'etats.creer',
+                'etats.lire',
+                'etats.valider',
             ],
-            
-            'Caissier'       => [
-                'voir_ticket_valide', 'payer_especes', 'generer_lot_wave', 'voir_consolidation_paie', 'gerer_avances'
+
+            'Caissier' => [
+                'tickets.lire',
+                'tickets.payer',
+                'tickets.wave.generer',
+                'tickets.wave.valider',
+                'avances.creer',
+                'avances.lire',
+                'avances.modifier',
+                'avances.supprimer',
+                'etats.lire',
+                'personnels.lire',
             ],
-            
+
             'Superviseur RH' => [
-                'importer_personnel', 'modifier_personnel', 'gerer_referentiels', 'gerer_avances', 'generer_etat_paiement'
+                'personnels.creer',
+                'personnels.lire',
+                'personnels.modifier',
+                'personnels.supprimer',
+                'personnels.importer',
+                'sites.creer', 'sites.lire', 'sites.modifier', 'sites.supprimer',
+                'sections.creer', 'sections.lire', 'sections.modifier', 'sections.supprimer',
+                'produits.creer', 'produits.lire', 'produits.modifier', 'produits.supprimer',
+                'localites.creer', 'localites.lire', 'localites.modifier', 'localites.supprimer',
+                'etats.creer',
+                'etats.lire',
+                'etats.valider',
+                'avances.lire',
+                'avances.creer',
+                'avances.modifier',
+                'avances.supprimer',
             ],
         ];
 
-        foreach ($roles as $roleName => $perms) {
-            $role = Role::firstOrCreate(['name' => $roleName]);
-            $role->syncPermissions($perms);
-        }
-
-        foreach ($permissions as $perm) {
-            Permission::firstOrCreate(['name' => $perm]);
-        }
-
-        // Création des rôles avec leurs permissions
-        $roles = [
-            'Super Admin'    => ['*'],
-            'Pointeur'       => ['creer_pointage', 'modifier_brouillon', 'cloturer_pointage'],
-            'Chef de Section'=> ['valider_etat_paiement', 'creer_regularisation'],
-            'Caissier'       => ['voir_ticket_valide', 'payer_especes', 'generer_lot_wave'],
-            'Superviseur RH' => ['importer_personnel', 'modifier_personnel', 'gerer_referentiels'],
-        ];
-
-        foreach ($roles as $roleName => $perms) {
-            $role = Role::firstOrCreate(['name' => $roleName]);
+        foreach ($roles as $name => $perms) {
+            $role = Role::firstOrCreate(['name' => $name]);
             $role->syncPermissions($perms);
         }
     }

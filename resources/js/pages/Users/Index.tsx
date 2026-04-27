@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { usePage, Link, router } from '@inertiajs/react';
 import { 
     Search, Shield, Building2, X, Check, UserCog, Trash2, Mail, Filter
@@ -58,15 +58,14 @@ export default function Index() {
         });
     };
 
-    const handleDelete = (id: number) => {
-        if (!confirm('Supprimer définitivement cet utilisateur ?')) return;
+    const handleDelete = useCallback((id: number) => {
+        if (!confirm("Voulez-vous vraiment supprimer cet utilisateur ?")) return;
         setDeleting(id);
-        
         router.delete(usersDestroy.url({ user: id }), {
             preserveScroll: true,
             onFinish: () => setDeleting(null)
         });
-    };
+    }, []);
 
     return (
         <>

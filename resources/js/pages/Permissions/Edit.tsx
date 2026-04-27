@@ -5,7 +5,7 @@ import SettingsLayout from '@/layouts/settings/layout';
 export default function Edit() {
     const { permission } = usePage<any>().props;
     const { data, setData, put, processing, errors } = useForm({ name: permission.name });
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); put(permissionsUpdate.url({ permission: permission.id })); };
+    const handleSubmit = (e: React.SubmitEvent) => { e.preventDefault(); put(permissionsUpdate.url({ permission: permission.id })); };
 
     return (
         <SettingsLayout>

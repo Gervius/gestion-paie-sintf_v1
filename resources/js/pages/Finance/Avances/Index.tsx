@@ -9,6 +9,10 @@ import { financeAvancesStore } from '@/routes';
 
 export default function Index() {
     const { avances, personnels, filters, flash } = usePage<any>().props;
+    const { auth } = usePage().props;
+    const userPerms = auth?.user?.permissions || [];
+    const isSuperAdmin = userPerms.includes('*') || auth?.user?.roles?.includes('Super Admin');
+    const canCreerAvance = isSuperAdmin || userPerms.includes('avances.creer');
     const [showForm, setShowForm] = useState(false);
     
     // Filtres du tableau principal
@@ -91,9 +95,11 @@ export default function Index() {
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <Heading title="Avances sur Salaire" description="Historique des prêts et suivi des soldes restants" />
-                <Button onClick={() => setShowForm(!showForm)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-md">
-                    <Plus className="mr-2 h-4 w-4" /> Accorder une avance
-                </Button>
+                {canCreerAvance && (
+                    <Button onClick={() => setShowForm(!showForm)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-md">
+                        <Plus className="mr-2 h-4 w-4" /> Accorder une avance
+                    </Button>
+                )}
             </div>
 
             {/* FORMULAIRE D'AVANCE */}

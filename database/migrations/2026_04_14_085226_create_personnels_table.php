@@ -36,7 +36,7 @@ return new class extends Migration
             $table->foreignId('site_travail_id')->constrained('sites')->restrictOnDelete();
             $table->foreignId('section_defaut_id')->nullable()->constrained('sections')->nullOnDelete();
             $table->boolean('actif')->default(true);
-            $table->string('preference_paiement')->default('ESPECES');
+            $table->string('preference_paiement')->default('WAVE');
             $table->string('import_batch')->nullable();
             $table->timestamps();
             $table->softDeletes();

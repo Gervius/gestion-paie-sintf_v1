@@ -9,6 +9,6 @@ class SocietePolicy
 {
     public function update(User $user): bool
     {
-        return $user->can('gerer_referentiels') || $user->can('*');
+        return $user->can('societe.editer');
     }
 }

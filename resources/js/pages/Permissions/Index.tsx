@@ -1,6 +1,6 @@
 import { usePage, Link, router } from '@inertiajs/react';
 import { Plus, Pencil, Trash2, Key } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { permissionsCreate, permissionsEdit, permissionsDestroy } from '@/routes';
 import SettingsLayout from '@/layouts/settings/layout';
 
@@ -8,11 +8,19 @@ export default function Index() {
     const { permissions } = usePage<any>().props;
     const [deleting, setDeleting] = useState<number | null>(null);
 
-    const handleDelete = (id: number) => {
-        if (!confirm('Supprimer cette permission du système ?')) return;
+    // N'oublie pas d'importer useCallback depuis 'react' en haut du fichier
+    
+    const handleDelete = useCallback((id: number) => {
+        if (!confirm('Supprimer cet élément ?')) return;
         setDeleting(id);
-        router.delete(permissionsDestroy.url({ permission: id }), { preserveScroll: true, onFinish: () => setDeleting(null) });
-    };
+        
+        // Utilise ta route spécifique ici (referentielsProduitsDestroy, referentielsLocalitesDestroy, ou permissionsDestroy)
+        router.delete(permissionsDestroy.url({ permission: id }), { 
+            preserveScroll: true, 
+            onFinish: () => setDeleting(null) 
+        });
+    }, []); 
+    
 
     return (
         <SettingsLayout>

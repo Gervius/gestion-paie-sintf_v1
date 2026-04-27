@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Policies;
 
 use App\Models\User;
@@ -9,20 +8,22 @@ class RolePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('gerer_utilisateurs') || $user->can('*');
+        return $user->can('roles.lire') || $user->can('*');
     }
-
     public function create(User $user): bool
     {
-        return $user->can('gerer_utilisateurs') || $user->can('*');
+        return $user->can('roles.creer') || $user->can('*');
     }
+    // app/Policies/RolePolicy.php
 
     public function update(User $user, Role $role): bool
     {
-        if ($role->name === 'Super Admin' && !$user->can('*')) {
+        // On interdit à quiconque (sauf Super Admin géré par le Gate) 
+        // de modifier le rôle Super Admin lui-même.
+        if ($role->name === 'Super Admin') {
             return false;
         }
-        return $user->can('gerer_utilisateurs') || $user->can('*');
+        return $user->can('roles.modifier');
     }
 
     public function delete(User $user, Role $role): bool
@@ -30,6 +31,6 @@ class RolePolicy
         if ($role->name === 'Super Admin') {
             return false;
         }
-        return $user->can('gerer_utilisateurs') || $user->can('*');
+        return $user->can('roles.supprimer');
     }
 }

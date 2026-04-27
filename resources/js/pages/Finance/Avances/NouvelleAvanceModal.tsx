@@ -20,21 +20,40 @@ export function NouvelleAvanceModal({ isOpen, onClose }: { isOpen: boolean; onCl
     const searchRef = useRef<HTMLDivElement>(null);
 
     // --- MOTEUR DE RECHERCHE ASYNC ---
+    // --- MOTEUR DE RECHERCHE ASYNC (SÉCURISÉ) ---
     useEffect(() => {
+        // 1. Initialisation du contrôleur d'annulation
+        const abortController = new AbortController();
+
         if (searchTerm.length >= 2 && !selectedPersonnel) {
             setIsSearching(true);
+            
             const delay = setTimeout(() => {
-                axios.get(`${apiPersonnelSearch.url()}?q=${encodeURIComponent(searchTerm)}`)
-                     .then((r) => {
-                        setResults(r.data);
+                axios.get(`${apiPersonnelSearch.url()}?q=${encodeURIComponent(searchTerm)}`, {
+                    signal: abortController.signal // 2. Attachement du signal à la requête
+                })
+                .then((r) => {
+                    setResults(r.data);
+                    setIsSearching(false);
+                })
+                .catch((err) => {
+                    // 3. On ignore l'erreur si elle est due à une annulation volontaire
+                    if (!axios.isCancel(err)) {
                         setIsSearching(false);
-                     });
-            }, 300); // 💡 On attend 300ms pour économiser le serveur
-            return () => clearTimeout(delay);
+                    }
+                });
+            }, 300); 
+
+            return () => {
+                clearTimeout(delay);
+                abortController.abort(); // 4. Annule la requête HTTP en vol si le composant est démonté
+            };
         } else {
             setResults([]);
             setIsSearching(false);
         }
+        
+        return () => abortController.abort();
     }, [searchTerm, selectedPersonnel]);
 
     const handleSelect = (p: any) => {

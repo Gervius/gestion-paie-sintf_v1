@@ -4,7 +4,7 @@ import SettingsLayout from '@/layouts/settings/layout';
 
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm({ name: '' });
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); post(permissionsStore.url()); };
+    const handleSubmit = (e: React.SubmitEvent) => { e.preventDefault(); post(permissionsStore.url()); };
 
     return (
         <SettingsLayout>

@@ -7,7 +7,7 @@ export default function Create() {
     const { permissionsGrouped } = usePage<any>().props;
     const { data, setData, post, processing, errors } = useForm({ name: '', permissions: [] as string[] });
 
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); post(rolesStore.url()); };
+    const handleSubmit = (e: React.SubmitEvent) => { e.preventDefault(); post(rolesStore.url()); };
 
     const togglePermission = (permName: string, checked: boolean) => {
         if (checked) {
@@ -18,7 +18,7 @@ export default function Create() {
     };
 
     return (
-        <SettingsLayout>
+        <>
             <div className="max-w-4xl mx-auto p-6 space-y-6">
                 <h1 className="text-2xl font-bold text-gray-900">Nouveau Rôle</h1>
                 <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border border-border shadow-sm space-y-6">
@@ -66,6 +66,6 @@ export default function Create() {
                     </div>
                 </form>
             </div>
-        </SettingsLayout>
+        </>
     );
 }

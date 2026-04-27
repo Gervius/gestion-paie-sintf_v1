@@ -1,5 +1,5 @@
 import { usePage, Link, router, Head } from '@inertiajs/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, CheckCircle2, Eye, Trash2, Clock, Archive, Filter, CalendarDays } from 'lucide-react';
 import { pointageCreate, pointageShow, pointageDestroy } from '@/routes';
 import Heading from '@/components/heading';
@@ -13,15 +13,25 @@ const STATUT_CONFIG = {
 };
 
 export default function Index() {
-    const { pointages, sites, sections, filters, flash } = usePage<any>().props;
+    const { pointages, sites, sections, filters, flash, auth } = usePage<any>().props;
+
+    // 1. Détection robuste du Super Admin
+    const userPerms = auth?.user?.permissions || [];
+    const userRoles = auth?.user?.roles || [];
+    const isSuperAdmin = userPerms.includes('*') || userRoles.includes('Super Admin');
+
+    // 2. Application granulaire
+    const canCreate = isSuperAdmin || userPerms.includes('pointages.creer');
+    const canDelete = isSuperAdmin || userPerms.includes('pointages.supprimer');
 
     const [search, setSearch] = useState(filters?.search || '');
+    
     const isInitialRender = useRef(true);
 
-    const handleDelete = (id: number) => {
+    const handleDelete = useCallback((id: number) => {
         if (!confirm('Êtes-vous sûr de vouloir supprimer cette feuille de pointage ? Cette action est irréversible.')) return;
         router.delete(pointageDestroy.url({ pointage: id }), { preserveScroll: true });
-    };
+    }, []);
 
     // Fonction de filtrage dynamique
     const handleFilterChange = (key: string, value: string) => {
@@ -53,11 +63,13 @@ export default function Index() {
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <Heading title="Suivi des Pointages" description="Gestion des feuilles de présence journalières et rendements" />
-                <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-11" asChild>
-                    <Link href={pointageCreate.url()}>
-                        <Plus size={18} className="mr-2" /> Nouvelle feuille
-                    </Link>
-                </Button>
+                {canCreate && (
+                    <Button className="bg-primary hover:bg-primary/90 text-white font-bold h-11" asChild>
+                        <Link href={pointageCreate.url()}>
+                            <Plus size={18} className="mr-2" /> Nouvelle feuille
+                        </Link>
+                    </Button>
+                )}
             </div>
 
             {/* BARRE DE FILTRES INTELLIGENTE */}
@@ -167,11 +179,8 @@ export default function Index() {
                                                 <Eye size={14} /> Consulter
                                             </Link>
                                             
-                                            {item.statut === 'PREPARATION' && (
-                                                <button 
-                                                    onClick={() => handleDelete(item.id)} 
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-all"
-                                                >
+                                            {item.statut === 'PREPARATION' && canDelete && (
+                                                <button onClick={() => handleDelete(item.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-all">
                                                     <Trash2 size={14} /> Supprimer
                                                 </button>
                                             )}

@@ -6,7 +6,7 @@ import { referentielsProduitsUpdate, referentielsProduitsIndex } from '@/routes'
 export default function Edit() {
     const { produit } = usePage<any>().props;
     const { data, setData, put, processing, errors } = useForm({ code_produit: produit.code_produit, nom_produit: produit.nom_produit });
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); put(referentielsProduitsUpdate.url({ produit: produit.id })); };
+    const handleSubmit = (e: React.SubmitEvent) => { e.preventDefault(); put(referentielsProduitsUpdate.url({ produit: produit.id })); };
 
     return (
         <div className="max-w-2xl mx-auto p-6 space-y-6">

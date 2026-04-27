@@ -28,9 +28,7 @@ class FinanceController extends Controller
     public function etatsIndex(Request $request)
     {
         // Permission : generer_etat_paiement ou voir_consolidation_paie
-        if (!$request->user()->can('generer_etat_paiement') && !$request->user()->can('*')) {
-            abort(403, "Vous n'avez pas la permission de consulter les états.");
-        }
+        $this->authorize('viewAny', EtatPaiement::class);
 
         $status = $request->input('status', 'PROVISOIRE');
         $search = $request->input('search');
@@ -56,9 +54,8 @@ class FinanceController extends Controller
      */
     public function etatStoreCampagne(Request $request, EtatPaiementGenerationService $service)
     {
-        if (!$request->user()->can('generer_etat_paiement') && !$request->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('create', EtatPaiement::class);
+
 
         $validated = $request->validate([
             'section_ids'   => 'required|array|min:1',
@@ -91,9 +88,7 @@ class FinanceController extends Controller
     {
         // L'EtatPaiement est déjà protégé par le SiteScope s'il est activé
         // On vérifie si l'utilisateur peut voir les tickets (Caissier, RH, Admin)
-        if (!auth()->user()->can('voir_ticket_valide') && !auth()->user()->can('generer_etat_paiement') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('view', $etat);
 
         $etat->load(['section', 'tickets.personnel' => function($q) {
             $q->withSum(['avances as total_avances_actives' => function($sq) {
@@ -103,9 +98,7 @@ class FinanceController extends Controller
         
         return Inertia::render('Finance/Etats/Show', [
             'etat' => $etat,
-            'can' => [
-                'valider' => auth()->user()->can('valider_etat_paiement') || auth()->user()->can('*'),
-            ]
+            
         ]);
     }
 
@@ -131,9 +124,7 @@ class FinanceController extends Controller
     public function etatDestroy(EtatPaiement $etat)
     {
         // Seul celui qui peut générer peut annuler (Admin/RH/Chef de Section)
-        if (!$etat->statut === 'PROVISOIRE' || (!auth()->user()->can('generer_etat_paiement') && !auth()->user()->can('*'))) {
-            abort(403, "Action impossible sur un état validé ou sans permission.");
-        }
+        $this->authorize('delete', $etat);
 
         DB::transaction(function () use ($etat) {
             DB::table('pointage_lignes')
@@ -151,18 +142,15 @@ class FinanceController extends Controller
     public function updateTicketRetenue(Request $request, TicketPaiement $ticket)
     {
         // Seul le caissier ou celui qui gère les avances peut modifier une retenue
-        if (!auth()->user()->can('gerer_avances') && !auth()->user()->can('payer_especes') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('modifierRetenue', $ticket);
 
         $validated = $request->validate(['montant_retenue' => 'required|numeric|min:0']);
 
-        if ($ticket->statut === 'SOLDE' || $ticket->etatPaiement->statut === 'VALIDE') {
-            // Optionnel : permettre la modif si l'état est VALIDE mais pas encore PAYÉ ? 
-            // Ici on bloque si l'état est verrouillé (VALIDE).
-            if ($ticket->etatPaiement->statut === 'VALIDE' && !auth()->user()->can('*')) {
-                return back()->withErrors(['error' => "L'état est verrouillé."]);
-            }
+        if ($ticket->statut === 'SOLDE') {
+            return back()->withErrors(['error' => 'Impossible de modifier un ticket déjà soldé.']);
+        }
+        if ($ticket->etatPaiement->statut === 'VALIDE' && !auth()->user()->can('*')) {
+            return back()->withErrors(['error' => "L'état est verrouillé, modification interdite."]);
         }
 
         $ticket->update([
@@ -178,9 +166,7 @@ class FinanceController extends Controller
      */
     public function etatPayerMassEspeces(EtatPaiement $etat, PaiementEspecesService $service)
     {
-        if (!auth()->user()->can('payer_especes') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('payer', TicketPaiement::class);
 
         try {
             $count = $service->payerEtatComplet($etat->id);
@@ -195,7 +181,7 @@ class FinanceController extends Controller
      */
     public function avancesIndex(Request $request)
     {
-        if (!auth()->user()->can('gerer_avances') && !auth()->user()->can('*')) {
+        if (!auth()->user()->can('avances.lire') && !auth()->user()->can('*')) {
             abort(403);
         }
 
@@ -214,7 +200,7 @@ class FinanceController extends Controller
      */
     public function avanceStore(Request $request, AvanceService $service)
     {
-        if (!auth()->user()->can('gerer_avances') && !auth()->user()->can('*')) {
+        if (!auth()->user()->can('avances.creer') && !auth()->user()->can('*')) {
             abort(403);
         }
 
@@ -239,9 +225,7 @@ class FinanceController extends Controller
      */
     public function telechargerBordereauCaisse(EtatPaiement $etat, GenerateBordereauCaissePdfAction $action)
     {
-        if (!auth()->user()->can('payer_especes') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('view', $etat);
         return $action->execute($etat);
     }
 
@@ -250,9 +234,7 @@ class FinanceController extends Controller
      */
     public function genererLotWave(EtatPaiement $etat, WaveExportService $service)
     {
-        if (!auth()->user()->can('generer_lot_wave') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('genererLotWave', TicketPaiement::class);
 
         try {
             $lot = $service->genererLotPourEtat($etat, auth()->id());
@@ -267,9 +249,7 @@ class FinanceController extends Controller
      */
     public function telechargerLotWave(LotPaiementWave $lot)
     {
-        if (!auth()->user()->can('generer_lot_wave') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('genererLotWave', TicketPaiement::class);
 
         return Excel::download(new WaveBulkExport($lot), 'WAVE_' . $lot->reference_lot . '.xlsx');
     }
@@ -279,9 +259,7 @@ class FinanceController extends Controller
      */
     public function validerLotWave($lotId, WaveExportService $service)
     {
-        if (!auth()->user()->can('generer_lot_wave') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('validerLotWave', TicketPaiement::class);
 
         try {
             $service->confirmerTransfertLot($lotId);

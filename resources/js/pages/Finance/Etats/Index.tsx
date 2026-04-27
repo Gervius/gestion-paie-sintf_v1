@@ -1,5 +1,5 @@
 import { usePage, Link, router, Head, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FileCheck, Eye, LayoutList, Zap, CalendarRange, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
@@ -9,6 +9,10 @@ import { financeEtatsShow, financeEtatsCampagne } from '@/routes';
 
 export default function Index() {
     const { etats, sections, date_debut_suggeree, filters } = usePage<any>().props;
+    const { auth } = usePage().props;
+    const userPerms = auth?.user?.permissions || [];
+    const isSuperAdmin = userPerms.includes('*') || auth?.user?.roles?.includes('Super Admin');
+    const canGenererCampagne = isSuperAdmin || userPerms.includes('etats.creer');
     const [showForm, setShowForm] = useState(false);
 
     const { data, setData, post, processing } = useForm({
@@ -17,21 +21,34 @@ export default function Index() {
         date_fin: new Date().toISOString().split('T')[0],
     });
 
-    const toggleSection = (id: number) => {
-        const current = [...data.section_ids];
-        setData('section_ids', current.includes(id) ? current.filter(i => i !== id) : [...current, id]);
-    };
+    // Dans la déclaration du composant :
+    const toggleSection = useCallback((id: number) => {
+        setData(prevData => {
+            const current = [...prevData.section_ids];
+            return {
+                ...prevData,
+                section_ids: current.includes(id) ? current.filter(i => i !== id) : [...current, id]
+            };
+        });
+    }, []); // Utilisation du callback setState (prevData) pour éviter de mettre `data` en dépendance
 
-    const toggleAll = () => setData('section_ids', data.section_ids.length === sections.length ? [] : sections.map((s:any) => s.id));
+    const toggleAll = useCallback(() => {
+        setData(prevData => ({
+            ...prevData,
+            section_ids: prevData.section_ids.length === sections.length ? [] : sections.map((s:any) => s.id)
+        }));
+    }, [sections]);
 
     return (
         <div className="p-6 space-y-6">
             <Head title="Campagnes de Paie" />
             <div className="flex justify-between items-center">
                 <Heading title="États de Paiement" description="Consolidation multi-sections" />
-                <Button onClick={() => setShowForm(!showForm)} className="bg-secondary font-black">
-                    <Zap className="mr-2 h-4 w-4" /> Générer campagne
-                </Button>
+                {canGenererCampagne && (
+                    <Button onClick={() => setShowForm(!showForm)} className="bg-secondary font-black">
+                        <Zap className="mr-2 h-4 w-4" /> Générer campagne
+                    </Button>
+                )}
             </div>
 
             {showForm && (

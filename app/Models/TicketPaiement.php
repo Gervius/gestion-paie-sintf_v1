@@ -6,12 +6,13 @@ use App\Scopes\SiteScope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Concerns\HasCentimesAttributes;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[ScopedBy(SiteScope::class)]
 class TicketPaiement extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasCentimesAttributes, SoftDeletes;
 
     protected $fillable = [
         'personnel_id', 'etat_paiement_id', 'lot_wave_id', 'date_generation', 'quantite_totale',
@@ -45,5 +46,32 @@ class TicketPaiement extends Model
     public function avance()
     {
         return $this->belongsTo(Avance::class, 'avance_id');
+    }
+
+    public function getMontantBrutCumuleAttribute(): ?float
+    {
+        return $this->getFrancsFromCentimes('montant_brut_cumule_centimes', 'montant_brut_cumule');
+    }
+    public function setMontantBrutCumuleAttribute($value): void
+    {
+        $this->setCentimesFromFrancs($value, 'montant_brut_cumule_centimes', 'montant_brut_cumule');
+    }
+
+    public function getMontantDeduitManuelAttribute(): ?float
+    {
+        return $this->getFrancsFromCentimes('montant_deduit_manuel_centimes', 'montant_deduit_manuel');
+    }
+    public function setMontantDeduitManuelAttribute($value): void
+    {
+        $this->setCentimesFromFrancs($value, 'montant_deduit_manuel_centimes', 'montant_deduit_manuel');
+    }
+
+    public function getMontantNetAttribute(): ?float
+    {
+        return $this->getFrancsFromCentimes('montant_net_centimes', 'montant_net');
+    }
+    public function setMontantNetAttribute($value): void
+    {
+        $this->setCentimesFromFrancs($value, 'montant_net_centimes', 'montant_net');
     }
 }

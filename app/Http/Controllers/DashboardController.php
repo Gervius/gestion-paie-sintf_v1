@@ -24,7 +24,7 @@ class DashboardController extends Controller
         ];
 
         // --- Pointeur ---
-        if ($user->can('creer_pointage')) {
+        if ($user->can('pointages.creer')) {  // <-- corrigé
             $aujourdhui = now()->toDateString();
             $data['kpis']['pointages_jour'] = Pointage::where('date_pointage', $aujourdhui)
                 ->whereIn('statut', ['PREPARATION', 'EDITE_TERRAIN'])
@@ -43,7 +43,7 @@ class DashboardController extends Controller
         }
 
         // --- Chef de section ---
-        if ($user->can('valider_etat_paiement')) {
+        if ($user->can('etats.valider')) {  // <-- corrigé
             $data['kpis']['etats_a_valider'] = EtatPaiement::where('statut', 'PROVISOIRE')->count();
 
             $data['quickLinks'][] = [
@@ -54,7 +54,7 @@ class DashboardController extends Controller
         }
 
         // --- Caissier ---
-        if ($user->can('voir_ticket_valide')) {
+        if ($user->can('tickets.lire')) {  // <-- corrigé
             $data['kpis']['tickets_en_attente'] = TicketPaiement::where('statut', 'NON_SOLDE')
                 ->whereHas('etatPaiement', fn($q) => $q->where('statut', 'VALIDE'))
                 ->count();
@@ -67,10 +67,9 @@ class DashboardController extends Controller
         }
 
         // --- RH / Import ---
-        if ($user->can('importer_personnel')) {
+        if ($user->can('personnels.importer')) {  // <-- corrigé
             $data['kpis']['employes_actifs'] = Personnel::where('actif', true)->count();
 
-            
             $data['quickLinks'][] = [
                 'label' => 'Liste du personnel',
                 'url'   => route('personnelIndex'),
@@ -78,9 +77,8 @@ class DashboardController extends Controller
             ];
         }
 
-        
         // --- Référentiels ---
-        if ($user->can('gerer_referentiels')) {
+        if ($user->can('gerer_referentiels')) {  // on garde celle-ci si tu souhaites la conserver, sinon la remplacer
             $data['quickLinks'][] = [
                 'label' => 'Sites',
                 'url'   => route('referentielsSitesIndex'),
@@ -99,10 +97,10 @@ class DashboardController extends Controller
         }
 
         // --- Régularisations ---
-        if ($user->can('creer_regularisation')) {
+        if ($user->can('regularisations.creer')) {  // <-- corrigé
             $data['quickLinks'][] = [
                 'label' => 'Régularisations',
-                'url'   => route('pointageIndex'), // À affiner si page dédiée
+                'url'   => route('pointageIndex'),
                 'icon'  => 'Pencil',
             ];
         }

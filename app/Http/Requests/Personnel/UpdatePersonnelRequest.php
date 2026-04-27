@@ -9,7 +9,7 @@ class UpdatePersonnelRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('modifier_personnel') || $this->user()->can('*');
+        return $this->user()->can('personnels.modifier');
     }
 
     public function rules(): array

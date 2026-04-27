@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use App\Concerns\HasCentimesAttributes;
 use App\Observers\PointageObserver;
 
 
@@ -15,7 +16,7 @@ use App\Observers\PointageObserver;
 #[ObservedBy(PointageObserver::class)]
 class Pointage extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasCentimesAttributes, SoftDeletes;
 
     protected $fillable = [
         'date_pointage', 'site_id', 'section_id', 'type_pointage', 'taux_applique', 'statut',
@@ -45,5 +46,15 @@ class Pointage extends Model
     public function auditPointages()
     {
         return $this->hasMany(AuditPointage::class);
+    }
+
+    public function getTauxAppliqueAttribute(): ?float
+    {
+        return $this->getFrancsFromCentimes('taux_applique_centimes', 'taux_applique');
+    }
+
+    public function setTauxAppliqueAttribute($value): void
+    {
+        $this->setCentimesFromFrancs($value, 'taux_applique_centimes', 'taux_applique');
     }
 }

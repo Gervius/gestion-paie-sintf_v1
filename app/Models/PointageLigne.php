@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Scopes\SiteScope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Concerns\HasCentimesAttributes;
 use Illuminate\Database\Eloquent\Model;
 
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -13,7 +14,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[ScopedBy(SiteScope::class)]
 class PointageLigne extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, HasCentimesAttributes, LogsActivity;
 
     protected $fillable = [
         'pointage_id', 'personnel_id', 'matricule_personnel', 'quantite',
@@ -51,5 +52,15 @@ class PointageLigne extends Model
             ->logAll()
             ->logOnlyDirty()
             ->setDescriptionForEvent(fn(string $eventName) => "Ligne de pointage {$eventName}");
+    }
+
+    public function getMontantBrutAttribute(): ?float
+    {
+        return $this->getFrancsFromCentimes('montant_brut_centimes', 'montant_brut');
+    }
+
+    public function setMontantBrutAttribute($value): void
+    {
+        $this->setCentimesFromFrancs($value, 'montant_brut_centimes', 'montant_brut');
     }
 }

@@ -46,9 +46,13 @@ export function AppSidebar() {
 
     const can = (permission?: string) => {
         if (!permission) return true;
-        if (!user || !user.permissions) return false;
-        if (user.permissions.includes('*')) return true;
-        return user.permissions.includes(permission);
+        if (!user) return false;
+        
+        // La règle d'or universelle (Permissions ET Rôle)
+        const isSuperAdmin = user.permissions?.includes('*') || user.roles?.includes('Super Admin');
+        if (isSuperAdmin) return true;
+
+        return user.permissions?.includes(permission);
     };
 
     if (!user) return null;
@@ -64,43 +68,75 @@ export function AppSidebar() {
         {
             label: 'Ressources Humaines',
             items: [
-                { title: 'Liste du personnel', href: safeRoute('personnelIndex', '/personnel'), icon: Users, permission: 'gerer_utilisateurs' },
-                { title: 'Nouveau recrutement', href: safeRoute('personnelCreate', '/personnel/create'), icon: UserPlus, permission: 'gerer_utilisateurs' },
+                { 
+                    title: 'Liste du personnel', 
+                    href: safeRoute('personnelIndex', '/personnel'), 
+                    icon: Users, 
+                    permission: 'personnels.lire'   // au lieu de 'gerer_utilisateurs'
+                },
+                { 
+                    title: 'Nouveau recrutement', 
+                    href: safeRoute('personnelCreate', '/personnel/create'), 
+                    icon: UserPlus, 
+                    permission: 'personnels.creer'  // au lieu de 'gerer_utilisateurs'
+                },
             ],
         },
         {
             label: 'Opérations & Pointage',
             items: [
-                { title: 'Suivi des Pointages', href: safeRoute('pointageIndex', '/pointages'), icon: ClipboardList },
-                { title: 'Saisie Journalière', href: safeRoute('pointageCreate', '/pointages/create'), icon: Calculator },
-                
+                { title: 'Suivi des Pointages', href: safeRoute('pointageIndex', '/pointages'), icon: ClipboardList, permission: 'pointages.lire' },
+                { title: 'Saisie Journalière', href: safeRoute('pointageCreate', '/pointages/create'), icon: Calculator, permission: 'pointages.creer' },
             ],
         },
         {
             label: 'Finances & Paie',
             items: [
-                { title: 'Avances sur Salaire', href: safeRoute('financeAvancesIndex', '/finance/avances'), icon: Coins, permission: 'gerer_avances' },
-                { title: 'États de Paiement', href: safeRoute('financeEtatsIndex', '/finance/etats'), icon: Receipt, permission: 'voir_ticket_valide' },
-                
+                { 
+                    title: 'Avances sur Salaire', 
+                    href: safeRoute('financeAvancesIndex', '/finance/avances'), 
+                    icon: Coins, 
+                    permission: 'avances.lire'     
+                },
+                { 
+                    title: 'États de Paiement', 
+                    href: safeRoute('financeEtatsIndex', '/finance/etats'), 
+                    icon: Receipt, 
+                    permission: 'etats.lire'       
+                },
             ],
         },
         {
             label: 'Données de Base',
-            permission: 'gerer_referentiels',
+            permission: undefined,  // on gère l'affichage via les items
             items: [
-                { title: 'Sites SINTF', href: safeRoute('referentielsSitesIndex', '/referentiels/sites'), icon: Building2 },
-                { title: 'Sections', href: safeRoute('referentielsSectionsIndex', '/referentiels/sections'), icon: Wrench },
-                { title: 'Produits', href: safeRoute('referentielsProduitsIndex', '/referentiels/produits'), icon: Package },
-                { title: 'Localités / Villages', href: safeRoute('referentielsLocalitesIndex', '/referentiels/localites'), icon: MapPin },
+                { title: 'Sites SINTF', href: safeRoute('referentielsSitesIndex', '/referentiels/sites'), icon: Building2, permission: 'sites.lire' },
+                { title: 'Sections', href: safeRoute('referentielsSectionsIndex', '/referentiels/sections'), icon: Wrench, permission: 'sections.lire' },
+                { title: 'Produits', href: safeRoute('referentielsProduitsIndex', '/referentiels/produits'), icon: Package, permission: 'produits.lire' },
+                { title: 'Localités / Villages', href: safeRoute('referentielsLocalitesIndex', '/referentiels/localites'), icon: MapPin, permission: 'localites.lire' },
             ],
         },
         {
             label: 'Administration',
-            permission: 'gerer_utilisateurs',
             items: [
-                { title: 'Utilisateurs', href: safeRoute('usersIndex', '/users'), icon: Shield },
-                { title: 'Rôles & Accès', href: safeRoute('rolesIndex', '/roles'), icon: Shield },
-                { title: 'Paramètres Société', href: safeRoute('societeEdit', '/societe/edit'), icon: Landmark, permission: 'gerer_referentiels' },
+                { 
+                    title: 'Utilisateurs', 
+                    href: safeRoute('usersIndex', '/users'), 
+                    icon: Shield, 
+                    permission: 'utilisateurs.lire' 
+                },
+                { 
+                    title: 'Rôles & Accès', 
+                    href: safeRoute('rolesIndex', '/roles'), 
+                    icon: Shield, 
+                    permission: 'roles.lire' 
+                },
+                { 
+                    title: 'Paramètres Société', 
+                    href: safeRoute('societeEdit', '/societe/edit'), 
+                    icon: Landmark, 
+                    permission: 'societe.modifier'   // car le contrôleur utilise authorize('update', Societe) -> societe.modifier
+                },
             ],
         },
     ];
