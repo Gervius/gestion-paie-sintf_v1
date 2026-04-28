@@ -92,12 +92,15 @@ class WaveExportService
 
                         // On déduit le maximum possible sur cette avance
                         $deduction = min($avance->solde_restant, $retenueAAppliquer);
-                        $avance->decrement('solde_restant', $deduction);
-                        $retenueAAppliquer -= $deduction;
+                        $nouveauSolde = $avance->solde_restant - $deduction;
 
-                        if ($avance->solde_restant <= 0) {
-                            $avance->update(['statut' => 'SOLDEE']);
-                        }
+                        $avance->update([
+                            'solde_restant' => $nouveauSolde,
+                            'solde_restant_centimes' => (int) round($nouveauSolde * 100),
+                            'statut' => $nouveauSolde <= 0 ? 'SOLDEE' : 'ACTIVE'
+                        ]);
+
+                        $retenueAAppliquer -= $deduction;
                     }
                 }
             }

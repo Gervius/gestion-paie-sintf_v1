@@ -37,14 +37,19 @@ class PaiementEspecesService
                     if ($retenueAAppliquer <= 0) break;
 
                     // On déduit soit la totalité de la retenue, soit ce qu'il reste sur cette avance
+                    // 1. Calcul du nouveau solde
                     $deduction = min($avance->solde_restant, $retenueAAppliquer);
-                    
-                    $avance->decrement('solde_restant', $deduction);
-                    $retenueAAppliquer -= $deduction;
+                    $nouveauSolde = $avance->solde_restant - $deduction;
 
-                    if ($avance->solde_restant <= 0) {
-                        $avance->update(['statut' => 'SOLDEE']);
-                    }
+                    // 2. Mise à jour via update() pour déclencher les centimes
+                    $avance->update([
+                        'solde_restant' => $nouveauSolde,
+                        'solde_restant_centimes' => (int) round($nouveauSolde * 100),
+                        'statut' => $nouveauSolde <= 0 ? 'SOLDEE' : 'ACTIVE'
+                    ]);
+
+                    // 3. On réduit le reste à appliquer
+                    $retenueAAppliquer -= $deduction;
                 }
             }
         });

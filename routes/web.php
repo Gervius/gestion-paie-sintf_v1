@@ -64,7 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/finance/avances', [FinanceController::class, 'avancesIndex'])->name('financeAvancesIndex');
         Route::get('/finance/avances/create', [FinanceController::class, 'avanceCreate'])->name('financeAvancesCreate');
         Route::post('/finance/avances', [FinanceController::class, 'avanceStore'])->name('financeAvancesStore');
-
+        Route::delete('/finance/avances/{avance}', [FinanceController::class, 'avanceDestroy'])->name('financeAvancesDestroy');
         // --- États de paiement ---
         Route::get('/finance/etats', [FinanceController::class, 'etatsIndex'])->name('financeEtatsIndex');
         Route::get('/finance/etats/create', [FinanceController::class, 'etatCreate'])->name('financeEtatsCreate');

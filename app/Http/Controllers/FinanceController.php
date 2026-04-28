@@ -27,14 +27,26 @@ class FinanceController extends Controller
      */
     public function etatsIndex(Request $request)
     {
-        // Permission : generer_etat_paiement ou voir_consolidation_paie
         $this->authorize('viewAny', EtatPaiement::class);
 
         $status = $request->input('status', 'PROVISOIRE');
         $search = $request->input('search');
 
         $query = EtatPaiement::with('section')
-            ->when($status !== 'TOUS', fn($q) => $q->where('statut', $status))
+            
+            ->withCount(['tickets as tickets_non_soldes_count' => function ($q) {
+                $q->where('statut', 'NON_SOLDE');
+            }])
+            // Filtres intelligents basés sur les enfants (tickets)
+            ->when($status === 'PROVISOIRE', fn($q) => $q->where('statut', 'PROVISOIRE'))
+            ->when($status === 'A_PAYER', function($q) {
+                $q->where('statut', 'VALIDE')
+                  ->whereHas('tickets', fn($sq) => $sq->where('statut', 'NON_SOLDE'));
+            })
+            ->when($status === 'SOLDE', function($q) {
+                $q->where('statut', 'VALIDE')
+                  ->whereDoesntHave('tickets', fn($sq) => $sq->where('statut', 'NON_SOLDE'));
+            })
             ->when($search, function ($q) use ($search) {
                 $q->where('reference_etat', 'ilike', "%{$search}%")
                   ->orWhereHas('section', fn($sq) => $sq->where('nom_section', 'ilike', "%{$search}%"));
@@ -139,26 +151,51 @@ class FinanceController extends Controller
     /**
      * Mise à jour de la retenue sur ticket
      */
+    /**
+     * Mise à jour de la retenue sur ticket
+     */
     public function updateTicketRetenue(Request $request, TicketPaiement $ticket)
     {
         // Seul le caissier ou celui qui gère les avances peut modifier une retenue
         $this->authorize('modifierRetenue', $ticket);
 
-        $validated = $request->validate(['montant_retenue' => 'required|numeric|min:0']);
+        // 1. CALCUL DE LA DETTE RÉELLE AU NIVEAU DU SERVEUR
+        $detteTotale = \App\Models\Avance::where('personnel_id', $ticket->personnel_id)
+            ->where('statut', 'ACTIVE')
+            ->sum('solde_restant');
+
+        // 2. SÉCURITÉ ABSOLUE : On ne peut pas retenir plus que la dette, 
+        // ET on ne peut pas retenir plus que le salaire brut (pour éviter un salaire net négatif !)
+        $plafondMaximum = min($detteTotale, $ticket->montant_brut_cumule);
+
+        // 3. VALIDATION STRICTE
+        $validated = $request->validate([
+            'montant_retenue' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:' . $plafondMaximum // Le fameux bouclier
+            ]
+        ], [
+            // Message d'erreur personnalisé si le caissier force la saisie
+            'montant_retenue.max' => "Impossible. La retenue maximale autorisée est de " . number_format($plafondMaximum, 0, ',', ' ') . " FCFA (Dette restante ou Salaire Brut)."
+        ]);
 
         if ($ticket->statut === 'SOLDE') {
             return back()->withErrors(['error' => 'Impossible de modifier un ticket déjà soldé.']);
         }
+        
         if ($ticket->etatPaiement->statut === 'VALIDE' && !auth()->user()->can('*')) {
             return back()->withErrors(['error' => "L'état est verrouillé, modification interdite."]);
         }
 
+        // 4. MISE À JOUR
         $ticket->update([
             'montant_deduit_manuel' => $validated['montant_retenue'],
             'montant_net' => $ticket->montant_brut_cumule - $validated['montant_retenue']
         ]);
 
-        return back()->with('success', "Retenue mise à jour.");
+        return back()->with('success', "Retenue appliquée avec succès.");
     }
 
     /**
@@ -179,18 +216,34 @@ class FinanceController extends Controller
     /**
      * Index des Avances
      */
+    /**
+     * Index des Avances
+     */
     public function avancesIndex(Request $request)
     {
-        if (!auth()->user()->can('avances.lire') && !auth()->user()->can('*')) {
-            abort(403);
-        }
+        $this->authorize('viewAny', Avance::class);
 
         $search = $request->input('search');
+        $status = $request->input('status', 'ACTIVE'); // Par défaut : les encours
+
+        $query = Avance::with('personnel')
+            ->when($status !== 'TOUS', fn($q) => $q->where('statut', $status))
+            ->when($search, function($q) use ($search) {
+                $q->whereHas('personnel', function($sq) use ($search) {
+                    $sq->where('nom', 'ilike', "%{$search}%")
+                       ->orWhere('prenom', 'ilike', "%{$search}%")
+                       ->orWhere('matricule', 'ilike', "%{$search}%");
+                });
+            })
+            ->orderBy('created_at', 'desc');
+
         return Inertia::render('Finance/Avances/Index', [
-            'avances' => Avance::with('personnel')
-                ->when($search, fn($q) => $q->whereHas('personnel', fn($sq) => $sq->where('nom', 'ilike', "%{$search}%")))
-                ->orderBy('created_at', 'desc')
-                ->paginate(15),
+            'avances' => $query->paginate(15)->withQueryString(),
+            'filters' => [
+                'search' => $search,
+                'status' => $status
+            ],
+            // Optionnel : si tu passes les personnels directement à ta modale depuis l'index
             'personnels' => Personnel::where('actif', true)->orderBy('nom')->get(['id', 'matricule', 'nom', 'prenom']),
         ]);
     }
@@ -217,6 +270,22 @@ class FinanceController extends Controller
             return back()->with('success', "Avance accordée.");
         } catch (\Exception $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * Supprimer une avance (uniquement si elle n’a jamais été remboursée)
+     */
+    public function avanceDestroy(Avance $avance)
+    {
+        $this->authorize('delete', $avance);
+
+        try {
+            $avance->delete();
+            return back()->with('success', "Avance supprimée avec succès.");
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => "Impossible de supprimer cette avance : " . $e->getMessage()]);
         }
     }
 

@@ -10,7 +10,7 @@ export function NouvelleAvanceModal({ isOpen, onClose }: { isOpen: boolean; onCl
         personnel_id: '',
         montant: '',
         motif: '',
-        date_avance: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split('T')[0],
     });
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -19,7 +19,7 @@ export function NouvelleAvanceModal({ isOpen, onClose }: { isOpen: boolean; onCl
     const [selectedPersonnel, setSelectedPersonnel] = useState<any>(null);
     const searchRef = useRef<HTMLDivElement>(null);
 
-    // --- MOTEUR DE RECHERCHE ASYNC ---
+    
     // --- MOTEUR DE RECHERCHE ASYNC (SÉCURISÉ) ---
     useEffect(() => {
         // 1. Initialisation du contrôleur d'annulation
@@ -158,8 +158,8 @@ export function NouvelleAvanceModal({ isOpen, onClose }: { isOpen: boolean; onCl
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                                 <input 
                                     type="date" 
-                                    value={data.date_avance} 
-                                    onChange={(e) => setData('date_avance', e.target.value)} 
+                                    value={data.date} 
+                                    onChange={(e) => setData('date', e.target.value)} 
                                     className="w-full pl-10 pr-3 py-3 border-2 border-border rounded-xl focus:ring-4 focus:ring-secondary/10 outline-none font-bold" 
                                 />
                             </div>
