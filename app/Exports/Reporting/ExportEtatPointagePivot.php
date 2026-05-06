@@ -34,7 +34,7 @@ class ExportEtatPointagePivot implements FromArray, WithStyles, WithColumnWidths
 
         // --- TITRE ET FILTRES ---
         $rows[] = [''];
-        $rows[] = ['MATRICE DE POINTAGE PAR SECTION (PIVOT)'];
+        $rows[] = ['ETAT DE POINTAGE PAR SECTION'];
         $rows[] = [''];
         $rows[] = ['Période :', 'Du ' . $this->data['periode']['debut'] . ' au ' . $this->data['periode']['fin']];
         $rows[] = ['Produit :', $this->data['infos']['produit']];
@@ -42,7 +42,7 @@ class ExportEtatPointagePivot implements FromArray, WithStyles, WithColumnWidths
         $rows[] = [''];
 
         // --- EN-TÊTES DU TABLEAU ---
-        $headers = ['MATRICULE & NOM', 'TOTAL QTÉ', 'TOTAL BRUT'];
+        $headers = ['MATRICULE & NOM', 'QTÉ TOTAL', 'MONTANT TOTAL'];
         foreach ($this->data['colonnes'] as $col) {
             $headers[] = $col['label'];
         }
@@ -75,6 +75,26 @@ class ExportEtatPointagePivot implements FromArray, WithStyles, WithColumnWidths
             }
             $rows[] = $rowData;
         }
+        $totalQteGlobal = $this->data['totaux']['global_quantite'];
+        $totalMontantGlobal = $this->data['totaux']['global_montant'];
+
+        $totalRow = [
+            'TOTAL GLOBAL',
+            $totalQteGlobal > 0 ? ($totalQteGlobal == floor($totalQteGlobal) ? (int)$totalQteGlobal : (float)$totalQteGlobal) : null,
+            $totalMontantGlobal > 0 ? (int)$totalMontantGlobal : null,
+        ];
+
+        // On boucle sur les totaux quotidiens
+        foreach ($this->data['colonnes'] as $col) {
+            $totVal = $this->data['totaux']['jours'][$col['cle']];
+            if ($totVal > 0) {
+                $totalRow[] = $totVal == floor($totVal) ? (int)$totVal : (float)$totVal;
+            } else {
+                $totalRow[] = null;
+            }
+        }
+        
+        $rows[] = $totalRow; // On ajoute la ligne complète à la fin du document
 
         return $rows;
     }
@@ -111,7 +131,16 @@ class ExportEtatPointagePivot implements FromArray, WithStyles, WithColumnWidths
             // Mise en évidence de la colonne des Noms et des Totaux Bruts
             'A13:A'.$lastRow => ['font' => ['bold' => true, 'size' => 10]],
             'C13:C'.$lastRow => ['font' => ['bold' => true, 'color' => ['argb' => 'FF065F46']]], // Vert foncé
+            'A'.$lastRow.':'.$lastColLetter.$lastRow => [
+                'font' => ['bold' => true, 'size' => 11],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE5E7EB']], // Fond gris
+            ],
+            // Le total financier en vert
+            'C'.$lastRow => ['font' => ['bold' => true, 'color' => ['argb' => 'FF065F46']]],
+            // Titre aligné à droite
+            'A'.$lastRow => ['alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT]],
         ];
+        
 
         // Fusions des titres
         $sheet->mergeCells('A1:E1');

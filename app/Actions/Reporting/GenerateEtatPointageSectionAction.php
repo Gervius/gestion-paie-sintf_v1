@@ -67,6 +67,12 @@ class GenerateEtatPointageSectionAction
 
         // 4. Construction de la Matrice Pivot (dynamique)
         $agents = [];
+        
+        // 🚨 NOUVEAU : Initialisation du tableau des totaux par jour avec des zéros
+        $totauxJours = [];
+        foreach ($clesJours as $cle) {
+            $totauxJours[$cle] = 0;
+        }
 
         foreach ($resultatsBruts as $row) {
             $pId = $row->personnel_id;
@@ -89,10 +95,13 @@ class GenerateEtatPointageSectionAction
                 ];
             }
 
-            // On injecte la quantité au bon jour
+            // On injecte la quantité au bon jour pour l'agent
             $agents[$pId]['pointages_qte'][$dateJ] = (float) $row->quantite_jour;
             $agents[$pId]['total_quantite'] += (float) $row->quantite_jour;
             $agents[$pId]['total_montant'] += (float) $row->montant_jour;
+
+            
+            $totauxJours[$dateJ] += (float) $row->quantite_jour;
         }
 
         // Tri alphabétique
@@ -118,6 +127,7 @@ class GenerateEtatPointageSectionAction
             'totaux'   => [
                 'global_quantite' => array_sum(array_column($agents, 'total_quantite')),
                 'global_montant'  => array_sum(array_column($agents, 'total_montant')),
+                'jours'           => $totauxJours, // 🚨 NOUVEAU : On renvoie les totaux
             ]
         ];
     }

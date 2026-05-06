@@ -136,7 +136,7 @@ class ExportEtatGeneralPaie implements FromArray, WithStyles, WithColumnWidths, 
         return [
             'A' => 8,   // N°
             'B' => 40,  // Section de production
-            'C' => 20,  // Brut
+            'C' => 20,  // brut
             'D' => 20,  // Avance
             'E' => 22,  // Net
         ];

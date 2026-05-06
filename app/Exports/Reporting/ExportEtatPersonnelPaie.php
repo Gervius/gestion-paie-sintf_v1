@@ -47,16 +47,23 @@ class ExportEtatPersonnelPaie implements FromArray, WithStyles, WithColumnWidths
 
         // 🚨 DONNÉES CORRIGÉES
         foreach ($this->data['lignes'] as $ligne) {
+            
+            // Si la valeur est un entier parfait (ex: 15.00), on la force en Integer (15)
+            // Sinon, on la laisse en Float (ex: 15.50)
+            $taux = $ligne['taux'] == floor($ligne['taux']) ? (int)$ligne['taux'] : (float)$ligne['taux'];
+            $qte  = $ligne['quantite_totale'] == floor($ligne['quantite_totale']) ? (int)$ligne['quantite_totale'] : (float)$ligne['quantite_totale'];
+            $rdt  = $ligne['rendement_moyen'] == floor($ligne['rendement_moyen']) ? (int)$ligne['rendement_moyen'] : (float)$ligne['rendement_moyen'];
+
             $rows[] = [
                 $ligne['produit'],
                 $ligne['section'],
                 $ligne['type_pointage'],
-                $ligne['nb_jours'],
-                $ligne['taux'],
-                $ligne['quantite_totale'],
+                (int)$ligne['nb_jours'],
+                $taux,
+                $qte,
                 $ligne['unite'],
-                $ligne['rendement_moyen'],
-                $ligne['montant_a_payer']
+                $rdt,
+                (int)$ligne['montant_a_payer'] // Le montant brut est toujours un entier
             ];
         }
 
@@ -133,9 +140,8 @@ class ExportEtatPersonnelPaie implements FromArray, WithStyles, WithColumnWidths
         $lastRow = count($this->array());
         
         return [
-            'E14:E1000' => '#,##0.##', // Taux
-            'F14:F1000' => '#,##0.##', // Quantité
-            'H14:H1000' => '#,##0.##', // Rendement
+            // Retire le formatage pour E, F et H. Excel utilisera le format Standard, 
+            // ce qui affichera 15.5 si c'est un float et 15 si c'est un int.
             'I14:I1000' => '#,##0_-',  // Montant Brut (Lignes)
             'I'.($lastRow-2).':I'.$lastRow => '#,##0_-',  // Montant (Totaux finaux)
         ];

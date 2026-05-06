@@ -55,7 +55,7 @@
             </td>
             
             <td style="width: 60%; text-align: center;">
-                <div class="header-title">Matrice de Pointage (Pivot)</div>
+                <div class="header-title">ETAT DE POINTAGE PAR SECTION</div>
                 <div style="font-size: 10px; font-weight: bold; color: #4b5563; text-transform: uppercase;">
                     Période du {{ $data['periode']['debut'] }} au {{ $data['periode']['fin'] }}
                 </div>
@@ -85,8 +85,8 @@
         <thead>
             <tr>
                 <th class="text-left" style="width: 25%;">MATRICULE & NOM</th>
-                <th style="width: 8%;">TOT. QTÉ</th>
-                <th style="width: 12%;">TOT. BRUT</th>
+                <th style="width: 8%;">QTÉ TOT.</th>
+                <th style="width: 12%;">MONTANT TOT.</th>
                 <!-- Boucle sur les Jours -->
                 @foreach($data['colonnes'] as $col)
                     <th>{{ $col['label'] }}</th>
@@ -130,7 +130,32 @@
             </tr>
             @endforelse
         </tbody>
+        <tfoot>
+            <tr style="background-color: #e5e7eb; font-size: 10px;">
+                <td class="text-right font-bold" style="text-transform: uppercase;">Total Global</td>
+                
+                <td class="text-center font-bold">
+                    {{ $data['totaux']['global_quantite'] > 0 ? (floor($data['totaux']['global_quantite']) == $data['totaux']['global_quantite'] ? (int)$data['totaux']['global_quantite'] : number_format($data['totaux']['global_quantite'], 2, ',', ' ')) : '-' }}
+                </td>
+                
+                <td class="text-right font-bold" style="color: #065f46;">
+                    {{ $data['totaux']['global_montant'] > 0 ? number_format($data['totaux']['global_montant'], 0, ',', ' ') : '-' }}
+                </td>
+
+                <!-- Boucle sur les totaux par jour -->
+                @foreach($data['colonnes'] as $col)
+                    @php $totVal = $data['totaux']['jours'][$col['cle']]; @endphp
+                    <td class="text-center font-bold" style="color: #c2410c;">
+                        {{ $totVal > 0 ? (floor($totVal) == $totVal ? (int)$totVal : number_format($totVal, 2, ',', ' ')) : '-' }}
+                    </td>
+                @endforeach
+                
+                <!-- Cellule vide pour la colonne Signature -->
+                <td style="background-color: #f3f4f6;"></td>
+            </tr>
+        </tfoot>
     </table>
+    
 
     <!-- 🚨 Bloc de Signatures -->
     <table class="signatures">
