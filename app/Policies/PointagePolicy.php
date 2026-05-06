@@ -51,4 +51,16 @@ class PointagePolicy
             && !$dejaEnPaie
             && ($user->can('pointages.rouvrir'));
     }
+
+    public function activerGarantie(User $user, Pointage $pointage): bool
+    {
+        
+        if (!in_array($pointage->statut, ['PREPARATION', 'EDITE_TERRAIN'])) {
+            return false;
+        }
+        
+        return $user->can('pointages.garantie.activer') || $user->can('*');
+    }
+
+
 }

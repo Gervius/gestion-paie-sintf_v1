@@ -179,11 +179,18 @@ export default function Index() {
                                                 <Eye size={14} /> Consulter
                                             </Link>
                                             
-                                            {item.statut === 'PREPARATION' && canDelete && (
-                                                <button onClick={() => handleDelete(item.id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-all">
+                                            {/* NOUVELLE CONDITION INFAILLIBLE : 
+                                                nb_lignes_soldees doit être strictement égal à 0
+                                            */}
+                                            {(item.nb_lignes_soldees === 0) && ((canDelete && item.statut === 'PREPARATION') || isSuperAdmin) ? (
+                                                <button 
+                                                    onClick={() => handleDelete(item.id)} 
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-all"
+                                                    title={isSuperAdmin && item.statut !== 'PREPARATION' ? "Forçage Super Admin (Aucun ticket n'est encore soldé)" : "Supprimer"}
+                                                >
                                                     <Trash2 size={14} /> Supprimer
                                                 </button>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </td>
                                 </tr>

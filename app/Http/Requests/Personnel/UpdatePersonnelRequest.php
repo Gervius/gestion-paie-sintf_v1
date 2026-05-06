@@ -41,7 +41,7 @@ class UpdatePersonnelRequest extends FormRequest
             'classification'       => 'nullable|string|max:255',
             'localite_domicile_id' => 'required|exists:localites,id',
             'site_travail_id'      => 'required|exists:sites,id',
-            'section_defaut_id'    => 'required|exists:sections,id',
+            'section_defaut_id'    => 'nullable|exists:sections,id',
             'preference_paiement'  => 'required|in:ESPECES,WAVE',
             'actif'                => 'boolean',
         ];

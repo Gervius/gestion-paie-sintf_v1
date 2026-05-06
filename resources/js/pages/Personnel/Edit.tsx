@@ -1,4 +1,5 @@
 import { Head, useForm, Link } from '@inertiajs/react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,11 +22,37 @@ import {
   MapPin,
   Briefcase,
   Info,
+  Search,
 } from 'lucide-react';
 import { personnelIndex, personnelUpdate } from '@/routes';
 import { Badge } from '@/components/ui/badge';
 
 export default function Edit({ personnel, sites, sections, localites }: any) {
+  
+  // NOUVEAU : On cherche le nom de la localité actuelle de l'agent pour pré-remplir la barre de recherche
+  const localiteInitiale = localites.find((loc: any) => loc.id === personnel.localite_domicile_id)?.nom_localite || '';
+
+  // --- ÉTATS POUR LA COMBOBOX DE RECHERCHE DE LOCALITÉ ---
+  const [localiteSearch, setLocaliteSearch] = useState(localiteInitiale);
+  const [isLocOpen, setIsLocOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+      function handleClickOutside(event: MouseEvent) {
+          if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+              setIsLocOpen(false);
+          }
+      }
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+
+  const filteredLocalites = localites.filter((loc: any) =>
+      loc.nom_localite.toLowerCase().includes(localiteSearch.toLowerCase())
+  );
+  
+
   const generateGNumber = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = 'G';
@@ -86,7 +113,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500">
       <Head title={`Modifier ${personnel.nom}`} />
 
       <div className="flex justify-between items-center border-b pb-4">
@@ -104,15 +131,17 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
         </div>
         <Badge
           variant="outline"
-          className={data.actif ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}
+          className={data.actif ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}
         >
           {data.actif ? 'Compte Actif' : 'Compte Désactivé'}
         </Badge>
       </div>
 
       <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
         {/* BLOC IDENTITÉ, CONTACT & INFOS COMPLÉMENTAIRES */}
         <div className="lg:col-span-7 space-y-6">
+          
           {/* État civil & identité */}
           <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
             <div className="flex items-center gap-2 text-primary font-black uppercase text-xs border-b pb-3">
@@ -121,20 +150,20 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="font-bold">Nom</Label>
+                <Label className="font-bold">Nom *</Label>
                 <Input
                   value={data.nom}
                   onChange={(e) => setData('nom', e.target.value.toUpperCase())}
-                  className="rounded-xl h-11 border-2"
+                  className="rounded-xl h-11 border-2 focus:border-primary"
                 />
                 <InputError message={errors.nom} />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold">Prénom(s)</Label>
+                <Label className="font-bold">Prénom(s) *</Label>
                 <Input
                   value={data.prenom}
                   onChange={(e) => setData('prenom', e.target.value)}
-                  className="rounded-xl h-11 border-2"
+                  className="rounded-xl h-11 border-2 focus:border-primary"
                 />
                 <InputError message={errors.prenom} />
               </div>
@@ -142,7 +171,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="font-bold">Sexe</Label>
+                <Label className="font-bold">Sexe *</Label>
                 <Select value={data.sexe} onValueChange={(v) => setData('sexe', v)}>
                   <SelectTrigger className="h-11 rounded-xl border-2">
                     <SelectValue />
@@ -187,27 +216,53 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
               </div>
             </div>
 
-            {/* Localité de domicile */}
-            <div className="space-y-2">
-              <Label className="font-bold flex items-center gap-1">
-                <MapPin size={14} /> Localité de domicile *
-              </Label>
-              <Select
-                value={data.localite_domicile_id}
-                onValueChange={(v) => setData('localite_domicile_id', v)}
-              >
-                <SelectTrigger className="h-11 rounded-xl border-2">
-                  <SelectValue placeholder="Choisir la localité" />
-                </SelectTrigger>
-                <SelectContent>
-                  {localites.map((loc: any) => (
-                    <SelectItem key={loc.id} value={loc.id.toString()}>
-                      {loc.nom_localite}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <InputError message={errors.localite_domicile_id} />
+            {/* NOUVEAU BLOC : LOCALITÉ DE DOMICILE AVEC RECHERCHE INTÉGRÉE (COMBOBOX) */}
+            <div className="space-y-2" ref={wrapperRef}>
+                <Label className="font-bold flex items-center gap-1"><MapPin size={14}/> Localité de domicile *</Label>
+                <div className="relative">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <Input
+                            type="text"
+                            placeholder="Taper pour filtrer les localités..."
+                            value={localiteSearch}
+                            onChange={(e) => {
+                                setLocaliteSearch(e.target.value);
+                                setIsLocOpen(true);
+                                setData('localite_domicile_id', ''); // Reset ID si modif
+                            }}
+                            onFocus={() => setIsLocOpen(true)}
+                            className={`h-11 pl-9 rounded-xl border-2 transition-all font-bold ${data.localite_domicile_id ? 'border-green-500 bg-green-50 text-green-800' : 'focus:border-primary border-slate-200'}`}
+                        />
+                    </div>
+                    
+                    {isLocOpen && (
+                        <div className="absolute z-50 w-full mt-2 bg-white border-2 border-slate-100 rounded-xl shadow-2xl max-h-64 overflow-y-auto animate-in slide-in-from-top-2">
+                            {filteredLocalites.length > 0 ? (
+                                filteredLocalites.map((loc: any) => (
+                                    <div
+                                        key={loc.id}
+                                        className="px-4 py-3 hover:bg-secondary/10 cursor-pointer text-sm font-bold text-slate-700 transition-colors border-b border-slate-50 last:border-0"
+                                        onClick={() => {
+                                            setData('localite_domicile_id', loc.id.toString());
+                                            setLocaliteSearch(loc.nom_localite);
+                                            setIsLocOpen(false);
+                                        }}
+                                    >
+                                        {loc.nom_localite}
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="p-6 text-center text-sm font-bold text-slate-400 flex flex-col items-center gap-2">
+                                    <MapPin size={24} className="opacity-50" />
+                                    Localité introuvable
+                                    <span className="text-[10px] text-orange-500 uppercase bg-orange-50 px-2 py-1 rounded-md">Ajoutez-la d'abord dans les Référentiels.</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <InputError message={errors.localite_domicile_id} />
             </div>
 
             {/* CNIB intelligente */}
@@ -226,7 +281,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
                     htmlFor="edit_sans_cnib"
                     className="text-xs font-bold text-orange-600 cursor-pointer"
                   >
-                    Pas de CNIB
+                    L'agent n'a pas de CNIB
                   </Label>
                 </div>
               </div>
@@ -234,6 +289,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
                 value={data.num_cnib}
                 onChange={(e) => setData('num_cnib', e.target.value)}
                 disabled={data.sans_cnib}
+                placeholder="Ex: B1234567"
                 className={`h-12 text-lg font-black tracking-widest rounded-xl border-2 transition-all ${
                   data.sans_cnib
                     ? 'bg-slate-100 border-slate-200 text-slate-400'
@@ -305,13 +361,13 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
           <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
             <div className="flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2 text-primary font-black uppercase text-xs">
-                <Phone size={16} /> Contact
+                <Phone size={16} /> Contact Téléphonique
               </div>
               <Select
                 value={data.a_telephone_propre ? 'PROPRE' : 'SC'}
                 onValueChange={(v) => setData('a_telephone_propre', v === 'PROPRE')}
               >
-                <SelectTrigger className="w-[180px] h-8 text-[10px] font-black uppercase">
+                <SelectTrigger className="w-[180px] h-8 text-[10px] font-black uppercase border-primary/20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,7 +379,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
 
             {data.a_telephone_propre ? (
               <div className="space-y-2 animate-in slide-in-from-left-2">
-                <Label className="font-bold">Téléphone principal</Label>
+                <Label className="font-bold">Téléphone principal *</Label>
                 <Input
                   value={data.telephone}
                   onChange={(e) => setData('telephone', e.target.value)}
@@ -334,7 +390,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
             ) : (
               <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-right-2">
                 <div className="space-y-2">
-                  <Label className="font-bold">N° Téléphone S/C</Label>
+                  <Label className="font-bold">N° Téléphone S/C *</Label>
                   <Input
                     value={data.telephone_sc}
                     onChange={(e) => setData('telephone_sc', e.target.value)}
@@ -343,7 +399,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
                   <InputError message={errors.telephone_sc} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-bold">Lien de parenté</Label>
+                  <Label className="font-bold">Lien de parenté *</Label>
                   <Input
                     value={data.lien_telephone_sc}
                     onChange={(e) => setData('lien_telephone_sc', e.target.value)}
@@ -429,7 +485,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
 
             <div className="space-y-2">
               <Label className="font-bold flex items-center gap-1">
-                <MapPin size={14} /> Site de travail
+                <MapPin size={14} /> Site de travail *
               </Label>
               <Select
                 value={data.site_travail_id}
@@ -451,7 +507,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
 
             <div className="space-y-2">
               <Label className="font-bold flex items-center gap-1">
-                <MapPin size={14} /> Section par défaut
+                <MapPin size={14} /> Section par défaut (Optionnelle)
               </Label>
               <Select
                 value={data.section_defaut_id}
@@ -472,7 +528,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
             </div>
 
             <div className="space-y-2 pt-4">
-              <Label className="font-bold">Préférence de paiement</Label>
+              <Label className="font-bold">Préférence de paiement *</Label>
               <Select
                 value={data.preference_paiement}
                 onValueChange={(v) => setData('preference_paiement', v)}
@@ -506,7 +562,7 @@ export default function Edit({ personnel, sites, sections, localites }: any) {
           <Button
             type="submit"
             disabled={processing}
-            className="w-full h-14 bg-primary text-white font-black uppercase rounded-2xl shadow-xl"
+            className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black uppercase rounded-2xl shadow-xl shadow-primary/20 transition-all"
           >
             Mettre à jour la fiche
           </Button>

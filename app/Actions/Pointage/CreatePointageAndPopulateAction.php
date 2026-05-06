@@ -18,15 +18,19 @@ class CreatePointageAndPopulateAction
         string $typePointage = 'RENDEMENT'
     ): Pointage {
         return DB::transaction(function () use ($siteId, $sectionId, $date, $typePointage) {
+            
+            // On s'assure qu'on ne cherche QUE parmi les pointages non supprimés (même si Eloquent le fait par défaut, c'est plus clair)
             $existant = Pointage::where('date_pointage', $date->toDateString())
                 ->where('site_id', $siteId)
                 ->where('section_id', $sectionId)
                 ->where('type_pointage', $typePointage)
+                ->whereNull('deleted_at')
                 ->first();
 
             if ($existant) {
                 throw new \Exception("Une feuille de pointage existe déjà pour ce site, cette section, cette date et ce type.");
             }
+            
 
             $section = Section::findOrFail($sectionId);
             $taux = $typePointage === 'JOURNALIER'

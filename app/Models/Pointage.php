@@ -19,7 +19,13 @@ class Pointage extends Model
     use HasFactory, HasCentimesAttributes, SoftDeletes;
 
     protected $fillable = [
-        'date_pointage', 'site_id', 'section_id', 'type_pointage', 'taux_applique', 'statut',
+        'date_pointage', 
+        'site_id', 
+        'section_id', 
+        'type_pointage', 
+        'taux_applique', 
+        'statut', 
+        'garantie_journaliere_active',
     ];
 
     protected $attributes = [

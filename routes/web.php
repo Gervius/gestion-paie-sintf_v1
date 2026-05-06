@@ -16,6 +16,8 @@ use App\Http\Controllers\SocieteController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\ToggleGarantiePointageController;
+use App\Http\Controllers\ReportingController;
 use App\Http\Controllers\ConsolidationController;
 
 // ------------------------------------------------------------------
@@ -113,6 +115,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             
             Route::post('/lignes/{ligne}/regul-negative', [RegularisationController::class, 'storeNegative'])
                 ->name('apiRegulNegativeStore');
+
+            Route::post('/pointages/{pointage}/toggle-garantie', ToggleGarantiePointageController::class)->name('apiPointageGarantieToggle');
         });
 
         // --- Référentiels (Resources) ---
@@ -167,8 +171,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'edit' => 'permissionsEdit', 'update' => 'permissionsUpdate', 'destroy' => 'permissionsDestroy'
         ]);
 
-        
+        Route::get('/reporting', [ReportingController::class, 'index'])->name('reportingIndex');
+        Route::post('/api/reporting/etat-general', [ReportingController::class, 'getEtatGeneral'])->name('apiReportingEtatGeneral');
 
+        Route::get('api/reporting/etat-general/pdf', [ReportingController::class, 'exportEtatGeneralPdf'])->name('apiReportingExportEtatGeneralePdf');
+        Route::get('/api/reporting/etat-general/excel', [ReportingController::class, 'exportEtatGeneralExcel'])->name('apiReportingEtatGeneralExcel');
+        Route::post('/api/reporting/etat-personnel', [ReportingController::class, 'getEtatPersonnel'])->name('apiReportingEtatPersonnel');
+        Route::get('/api/reporting/etat-personnel/pdf', [App\Http\Controllers\ReportingController::class, 'exportEtatPersonnelPdf'])->name('apiReportingEtatPersonnelPdf');
+        Route::get('/api/reporting/etat-personnel/excel', [App\Http\Controllers\ReportingController::class, 'exportEtatPersonnelExcel'])->name('apiReportingEtatPersonnelExcel');
+        Route::post('/api/reporting/etat-pointage-section', [App\Http\Controllers\ReportingController::class, 'getEtatPointageSection'])->name('apiReportingEtatPointageSection');
+        Route::get('/api/reporting/etat-pointage-section/excel', [App\Http\Controllers\ReportingController::class, 'exportEtatPointageSectionExcel'])->name('apiReportingEtatPointageSectionExcel');
+        Route::get('/api/reporting/etat-pointage-section/pdf', [App\Http\Controllers\ReportingController::class, 'exportEtatPointageSectionPdf'])->name('apiReportingEtatPointageSectionPdf');
+        
     }); 
 }); 
 

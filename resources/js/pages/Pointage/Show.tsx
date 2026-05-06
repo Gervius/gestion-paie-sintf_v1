@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { 
     FileText, RotateCcw, X, CheckCircle2, 
     ArrowLeft, Lock, Unlock, AlertCircle, PlusCircle,
-    Users, Banknote, Wallet, FileSpreadsheet
+    Users, Banknote, Wallet, FileSpreadsheet, 
+    ShieldAlert, ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 // Routes Wayfinder
 import { 
     apiPointageAgentsRemove, 
+    apiPointageGarantieToggle, 
     apiPointagePdf, 
     apiPointageReset, 
     apiPointageSubmit,
@@ -29,6 +31,8 @@ export default function Show() {
     const userPerms = auth?.user?.permissions || [];
     const userRoles = auth?.user?.roles || [];
     const isSuperAdmin = userPerms.includes('*') || userRoles.includes('Super Admin');
+    const canActiverGarantie = userPerms.includes('*') || userPerms.includes('pointages.garantie.activer');
+
 
     // 2. Sécurisation des boutons d'action
     const canReopen = isSuperAdmin || userPerms.includes('pointages.rouvrir');
@@ -135,6 +139,26 @@ export default function Show() {
                             {pointage.statut.replace('_', ' ')}
                             {isCloture && isSolder && " (SOLDÉ)"}
                         </Badge>
+                        {canActiverGarantie && !isCloture && (
+                            <Button 
+                                onClick={() => {
+                                    if(confirm('Modifier le mode de calcul pour toute cette équipe ?')) {
+                                        router.post(apiPointageGarantieToggle.url({ pointage: pointage.id }), {}, { preserveScroll: true });
+                                    }
+                                }}
+                                className={`font-black uppercase shadow-md transition-all h-10 px-4 ${
+                                    pointage.garantie_journaliere_active 
+                                    ? 'bg-orange-500 hover:bg-orange-600 text-white animate-pulse shadow-orange-500/30' 
+                                    : 'bg-white text-slate-500 hover:bg-orange-50 hover:text-orange-600 border-2 border-slate-200 hover:border-orange-300'
+                                }`}
+                            >
+                                {pointage.garantie_journaliere_active ? (
+                                    <><ShieldAlert className="mr-2" size={18} /> Urgence Garantie : ON</>
+                                ) : (
+                                    <><ShieldCheck className="mr-2" size={18} /> Activer Garantie Jour</>
+                                )}
+                            </Button>
+                        )}
                     </div>
                     <p className="text-muted-foreground text-sm font-medium uppercase font-black">
                         {pointage.site.nom_site} — {new Date(pointage.date_pointage).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

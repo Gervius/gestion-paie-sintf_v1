@@ -1,12 +1,13 @@
 import { Head, useForm, Link } from '@inertiajs/react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import InputError from '@/components/input-error';
 import Heading from '@/components/heading';
-import { Save, X, User, Phone, IdCard, MapPin, Briefcase, Info } from 'lucide-react';
+import { Save, X, User, Phone, IdCard, MapPin, Briefcase, Info, Search } from 'lucide-react';
 import { personnelIndex, personnelStore } from '@/routes';
 
 export default function Create({ localites, sites, sections }: any) {
@@ -14,7 +15,7 @@ export default function Create({ localites, sites, sections }: any) {
         nom: '', 
         prenom: '', 
         surnom: '', 
-        sexe: 'M', 
+        sexe: 'F', 
         date_naissance: '', 
         lieu_naissance: '',
         num_cnib: '', 
@@ -30,17 +31,36 @@ export default function Create({ localites, sites, sections }: any) {
         est_marie: false
     });
 
-    
+    // --- ÉTATS POUR LA COMBOBOX DE RECHERCHE DE LOCALITÉ ---
+    const [localiteSearch, setLocaliteSearch] = useState('');
+    const [isLocOpen, setIsLocOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    // Fermer le menu si on clique en dehors
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                setIsLocOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    // Filtrage instantané ultra-léger
+    const filteredLocalites = localites.filter((loc: any) =>
+        loc.nom_localite.toLowerCase().includes(localiteSearch.toLowerCase())
+    );
+
     // --- LOGIQUE DE GÉNÉRATION DU NUMÉRO "G" ---
     const generateGNumber = () => {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // On enlève I, O, 0, 1 pour éviter les confusions
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let result = 'G';
         for (let i = 0; i < 5; i++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
         return result;
     };
-
 
     // --- GESTION CNIB ---
     const handleSansCnibToggle = (checked: boolean) => {
@@ -118,15 +138,52 @@ export default function Create({ localites, sites, sections }: any) {
                                 </div>
                             </div>
 
-                            {/* LOCALITÉ DE DOMICILE */}
-                            <div className="space-y-2">
+                            {/* NOUVEAU BLOC : LOCALITÉ DE DOMICILE AVEC RECHERCHE INTÉGRÉE */}
+                            <div className="space-y-2" ref={wrapperRef}>
                                 <Label className="font-bold flex items-center gap-1"><MapPin size={14}/> Localité de domicile *</Label>
-                                <Select value={data.localite_domicile_id} onValueChange={v => setData('localite_domicile_id', v)}>
-                                    <SelectTrigger className="h-11 rounded-xl border-2"><SelectValue placeholder="Choisir la localité" /></SelectTrigger>
-                                    <SelectContent>
-                                        {localites.map((loc: any) => <SelectItem key={loc.id} value={loc.id.toString()}>{loc.nom_localite}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                                <div className="relative">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <Input
+                                            type="text"
+                                            placeholder="Taper pour filtrer les localités..."
+                                            value={localiteSearch}
+                                            onChange={(e) => {
+                                                setLocaliteSearch(e.target.value);
+                                                setIsLocOpen(true);
+                                                setData('localite_domicile_id', ''); // On reset l'ID si l'utilisateur modifie le texte
+                                            }}
+                                            onFocus={() => setIsLocOpen(true)}
+                                            className={`h-11 pl-9 rounded-xl border-2 transition-all font-bold ${data.localite_domicile_id ? 'border-green-500 bg-green-50 text-green-800' : 'focus:border-primary'}`}
+                                        />
+                                    </div>
+                                    
+                                    {isLocOpen && (
+                                        <div className="absolute z-50 w-full mt-2 bg-white border-2 border-slate-100 rounded-xl shadow-2xl max-h-64 overflow-y-auto animate-in slide-in-from-top-2">
+                                            {filteredLocalites.length > 0 ? (
+                                                filteredLocalites.map((loc: any) => (
+                                                    <div
+                                                        key={loc.id}
+                                                        className="px-4 py-3 hover:bg-secondary/10 cursor-pointer text-sm font-bold text-slate-700 transition-colors border-b border-slate-50 last:border-0"
+                                                        onClick={() => {
+                                                            setData('localite_domicile_id', loc.id.toString());
+                                                            setLocaliteSearch(loc.nom_localite);
+                                                            setIsLocOpen(false);
+                                                        }}
+                                                    >
+                                                        {loc.nom_localite}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="p-6 text-center text-sm font-bold text-slate-400 flex flex-col items-center gap-2">
+                                                    <MapPin size={24} className="opacity-50" />
+                                                    Localité introuvable
+                                                    <span className="text-[10px] text-orange-500 uppercase bg-orange-50 px-2 py-1 rounded-md">Pour créer cette localité, ajoutez-la d'abord dans les Référentiels.</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                                 <InputError message={errors.localite_domicile_id} />
                             </div>
 
@@ -237,7 +294,7 @@ export default function Create({ localites, sites, sections }: any) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="font-bold">Section par défaut *</Label>
+                                <Label className="font-bold">Section par défaut</Label>
                                 <Select value={data.section_defaut_id} onValueChange={v => setData('section_defaut_id', v)}>
                                     <SelectTrigger className="h-11 rounded-xl border-2"><SelectValue placeholder="Choisir la section" /></SelectTrigger>
                                     <SelectContent>

@@ -79,7 +79,7 @@ class PersonnelController extends Controller
             'telephone_sc'         => 'required_if:a_telephone_propre,false|nullable|string|max:20', 
             'lien_telephone_sc'    => 'required_if:a_telephone_propre,false|nullable|string|max:255', 
             'site_travail_id'      => 'required|exists:sites,id',
-            'section_defaut_id'    => 'required|exists:sections,id',
+            'section_defaut_id'    => 'nullable|exists:sections,id',
             'preference_paiement'  => 'required|in:ESPECES,WAVE',
             'est_marie'            => 'boolean',
         ]);

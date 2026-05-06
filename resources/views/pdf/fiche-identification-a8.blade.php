@@ -21,38 +21,37 @@
             justify-content: space-between;
             box-sizing: border-box;
         }
-        /* En-tête compact */
+
+        /* --- EN-TÊTE (version fiche7) --- */
         .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 0.5pt solid #ccc;
+            text-align: center;
+            border-bottom: 0.5pt solid #000;
             margin-bottom: 1.5mm;
-            padding-bottom: 1mm;
+            padding-bottom: 0.5mm;
         }
         .logo {
-            height: 8mm;
-            width: auto;
-        }
-        .company {
-            text-align: right;
-            line-height: 1.2;
+            max-width: 10mm;
+            max-height: 7mm;
+            margin: 0 auto 0.5mm auto;
         }
         .company-name {
-            font-size: 6pt;
-            font-weight: bold;
+            font-weight: 900;
+            font-size: 8pt;
             text-transform: uppercase;
+            letter-spacing: 0.5pt;
         }
         .badge-title {
-            font-size: 4.5pt;
+            font-size: 5.5pt;
             font-weight: bold;
-            color: #4a5568;
+            color: #2d3748;
         }
         .subtitle {
-            font-size: 4pt;
-            color: #718096;
+            font-size: 4.5pt;
+            color: #4a5568;
+            margin-top: 0.2mm;
         }
-        /* Site */
+
+        /* --- Site --- */
         .site {
             text-align: center;
             font-size: 5pt;
@@ -62,7 +61,8 @@
             margin-bottom: 2mm;
             border-radius: 1mm;
         }
-        /* Matricule très visible */
+
+        /* --- Matricule --- */
         .matricule-box {
             background: #f7fafc;
             border: 0.8pt solid #cbd5e0;
@@ -70,6 +70,7 @@
             padding: 2mm 1mm;
             text-align: center;
             margin-bottom: 2mm;
+            position: relative;
         }
         .matricule-label {
             font-size: 4pt;
@@ -83,7 +84,15 @@
             display: block;
             line-height: 1.2;
         }
-        /* Infos */
+        /* Petit texte créateur */
+        .creator {
+            font-size: 3pt;
+            color: #aaa;
+            text-align: center;
+            margin-top: 1mm;
+        }
+
+        /* --- Infos --- */
         .section-title {
             font-size: 4.5pt;
             font-weight: bold;
@@ -110,7 +119,8 @@
             font-weight: 900;
             text-transform: uppercase;
         }
-        /* Signature fixée en bas */
+
+        /* --- Signature fixée en bas --- */
         .signature-area {
             margin-top: 0;
             height: 7mm;
@@ -130,13 +140,12 @@
 <body>
 
 <div>
+    <!-- EN-TÊTE (version fiche7) -->
     <div class="header">
-        <img src="{{ public_path('sintf.png') }}" class="logo" alt="Logo">
-        <div class="company">
-            <div class="company-name">{{ strtoupper($societe->raison_sociale ?? 'SINTF') }}</div>
-            <div class="badge-title">FICHE INDIVIDUELLE</div>
-            <div class="subtitle">Main d'œuvre Occasionnelle</div>
-        </div>
+        <img src="{{ public_path('sintf.png') }}" class="logo" alt="Logo SINTF">
+        <div class="company-name">SINTF Sarl</div>
+        <div class="badge-title">FICHE INDIVIDUELLE</div>
+        <div class="subtitle">Main d'œuvre Occasionnelle</div>
     </div>
 
     <div class="site">
@@ -146,6 +155,10 @@
     <div class="matricule-box">
         <span class="matricule-label">Code Matricule</span>
         <span class="matricule-value">{{ $personnel->matricule }}</span>
+        <!-- Petit texte optionnel du créateur -->
+        @if(isset($createdBy))
+            <div class="creator">Créé par : {{ $createdBy }}</div>
+        @endif
     </div>
 
     <div class="section-title">Identité & Contact</div>

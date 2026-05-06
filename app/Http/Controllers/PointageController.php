@@ -10,6 +10,7 @@ use App\Http\Requests\Pointage\StorePointageRequest;
 use App\Http\Requests\Pointage\AddAgentRequest;
 use App\Http\Requests\Pointage\SubmitQuantitiesRequest;
 use App\Models\Pointage;
+use Illuminate\Support\Facades\DB;
 use App\Models\Site;
 use App\Models\Section;
 use App\Models\Personnel;
@@ -30,7 +31,12 @@ class PointageController extends Controller
         $dateFiltre = $request->input('date');
 
         
-        $query = Pointage::with(['site', 'section']);
+        $query = Pointage::with(['site', 'section'])
+                    ->withCount(['lignes as nb_lignes_soldees' => function ($query) {
+                            $query->whereHas('ticketPaiement', function ($q) {
+                                $q->where('statut', 'SOLDE');
+                            });
+                        }]);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -130,12 +136,16 @@ class PointageController extends Controller
         ]);
     }
 
+    
+
     public function addAgent(Pointage $pointage, AddAgentRequest $request, ManagePointageListAction $action)
     {
         $this->authorize('update', $pointage);
         $action->addAgent($pointage, $request->input('personnel_id'));
         return back()->with('success', 'Agent ajouté avec succès.');
     }
+
+
 
     public function removeAgent(Pointage $pointage, $ligneId, ManagePointageListAction $action)
     {
@@ -144,12 +154,16 @@ class PointageController extends Controller
         return back()->with('success', 'Agent retiré de la liste.');
     }
 
+
+
     public function resetToDefault(Pointage $pointage, ManagePointageListAction $action)
     {
         $this->authorize('update', $pointage);
         $action->resetToDefault($pointage);
         return back()->with('success', 'Liste réinitialisée aux agents par défaut.');
     }
+
+
 
     public function clearAll(Pointage $pointage, ManagePointageListAction $action)
     {
@@ -161,6 +175,8 @@ class PointageController extends Controller
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
+
+
 
     public function generatePdf(Pointage $pointage, GeneratePointagePdfAction $action)
     {
@@ -253,17 +269,63 @@ class PointageController extends Controller
 
     public function destroy(Pointage $pointage)
     {
-        
         $this->authorize('delete', $pointage);
 
-        
-        if ($pointage->statut !== 'PREPARATION') {
-            return back()->withErrors(['error' => 'Impossible de supprimer une feuille de pointage qui n\'est plus en préparation.']);
+        $isSuperAdmin = auth()->user()->can('*') || auth()->user()->hasRole('Super Admin');
+
+        // 1. BLOCAGE STANDARD : Un utilisateur normal ne supprime qu'en préparation
+        if (!$isSuperAdmin && $pointage->statut !== 'PREPARATION') {
+            return back()->withErrors(['error' => 'Seul un Super Admin peut supprimer un pointage déjà édité ou clôturé.']);
         }
 
-        $pointage->delete();
+        // 2. VÉRIFICATION DE LA CAISSE (Même le Super Admin ne peut pas frauder)
+        $hasSoldes = $pointage->lignes()->whereHas('ticketPaiement', function ($query) {
+            $query->where('statut', 'SOLDE');
+        })->exists();
 
-        return back()->with('success', 'La feuille de pointage a été supprimée avec succès.');
+        if ($hasSoldes) {
+            return back()->withErrors(['error' => 'Suppression impossible : Ce pointage a généré des paiements qui ont DÉJÀ été remis aux employés en caisse.']);
+        }
+
+        // 3. LA SUPPRESSION CHIRURGICALE AVEC RECALCUL
+        DB::transaction(function () use ($pointage) {
+            // A. On identifie les tickets de paie qui vont être impactés par cette suppression
+            $ticketIds = $pointage->lignes() // (Ici c'est bon si Pointage a bien une relation lignes())
+                ->whereNotNull('ticket_paiement_id')
+                ->pluck('ticket_paiement_id')
+                ->unique();
+
+            // B. On supprime les lignes du pointage (la suppression en cascade fera le reste)
+            $pointage->lignes()->delete();
+
+            // C. On recalcule les tickets de paie pour éviter que le comptable n'ait des faux totaux
+            if ($ticketIds->isNotEmpty()) {
+                $tickets = \App\Models\TicketPaiement::whereIn('id', $ticketIds)->get();
+                
+                foreach ($tickets as $ticket) {
+                    $nouvelleQuantite = $ticket->pointageLignes()->sum('quantite');
+                    
+                    if ($nouvelleQuantite == 0) {
+                        // S'il n'y a plus aucune ligne pour cet agent, on supprime son ticket
+                        $ticket->delete();
+                    } else {
+                        // Sinon, on recalcule son salaire brut et net
+                        $nouveauBrut = $ticket->pointageLignes()->sum('montant_brut');
+                        
+                        $ticket->update([
+                            'quantite_totale' => $nouvelleQuantite,
+                            'montant_brut_cumule' => $nouveauBrut,
+                            'montant_net' => $nouveauBrut - $ticket->montant_deduit_manuel
+                        ]);
+                    }
+                }
+            }
+
+            // D. Enfin, on détruit la coquille vide du pointage
+            $pointage->delete();
+        });
+
+        return back()->with('success', 'Pointage détruit avec succès et fiches de paie recalculées.');
     }
 
     

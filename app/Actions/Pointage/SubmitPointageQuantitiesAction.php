@@ -78,6 +78,8 @@ class SubmitPointageQuantitiesAction
                     ]);
             }
 
+            app(\App\Actions\Pointage\AppliquerGarantieJournaliereAction::class)->execute($lockedPointage);
+
             // 5. Clôture définitive du pointage
             $lockedPointage->update(['statut' => 'CLOTURE']);
         });

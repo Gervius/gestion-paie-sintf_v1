@@ -17,7 +17,7 @@
 <body>
     <table class="header-table">
         <tr>
-            <td style="width: 20%;"><img src="{{ public_path('sintf.svg') }}" style="max-height: 40px;"></td>
+            <td style="width: 20%;"><img src="{{ public_path('sintf.png') }}" style="max-height: 40px;"></td>
             <td style="width: 60%; text-align: center;">
                 <div class="header-title">Bordereau de Caisse CONSOLIDÉ (Espèces)</div>
                 <div style="font-size: 10px; margin-top: 5px;">Fusion de toutes les sections validées au {{ $date }}</div>

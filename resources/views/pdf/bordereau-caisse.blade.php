@@ -41,7 +41,7 @@
     <table class="header-table">
         <tr>
             <td style="width: 20%;">
-                <img src="{{ public_path('sintf.svg') }}" style="max-height: 50px;">
+                <img src="{{ public_path('sintf.png') }}" style="max-height: 50px;">
                 <div style="font-weight: bold; font-size: 9px; margin-top: 5px;">{{ $societe->raison_sociale ?? 'SINTF' }}</div>
             </td>
             <td style="width: 60%; text-align: center;">

@@ -16,7 +16,7 @@ class GenerateIdentificationCardAction
 
         $pdf = Pdf::loadView('pdf.fiche-identification-a8', [
             'personnel' => $personnel->load(['siteTravail', 'sectionDefaut']),
-            'dateImpression' => now()->format('d/m/Y')
+            'createdBy' => auth()->user()->name,
         ])->setPaper($customPaper, 'portrait');
 
         return $pdf->stream("BADGE_{$personnel->matricule}.pdf");

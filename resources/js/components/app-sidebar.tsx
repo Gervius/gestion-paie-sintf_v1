@@ -15,7 +15,10 @@ import {
     Shield,
     Landmark,
     Settings,
+    TableProperties,
     Wallet,
+    HeartOff,
+    BarChart3,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -103,6 +106,17 @@ export function AppSidebar() {
                     href: safeRoute('financeEtatsIndex', '/finance/etats'), 
                     icon: Receipt, 
                     permission: 'etats.lire'       
+                },
+            ],
+        },
+        {
+            label: 'Reporting & B.I',
+            items: [
+                { 
+                    title: 'Intelligence Métier', 
+                    href: safeRoute('reportingIndex', '/reporting'), 
+                    icon: BarChart3, 
+                    permission: 'rapports.lire' 
                 },
             ],
         },
