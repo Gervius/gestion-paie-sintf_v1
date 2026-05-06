@@ -80,7 +80,7 @@
             <tr>
                 <th style="width: 30px;" class="text-center">N°</th>
                 <th>SECTION DE PRODUCTION</th>
-                <th style="width: 120px;" class="text-right">COÛT BRUT (CFA)</th>
+                <th style="width: 120px;" class="text-right">COÛT(CFA)</th>
                 <th style="width: 120px;" class="text-right">AVANCE PAYÉE (CFA)</th>
                 <th style="width: 120px;" class="text-right">TOTAL À PAYER (CFA)</th>
             </tr>
@@ -103,7 +103,7 @@
         @if(count($data['lignes']) > 0)
         <tfoot>
             <tr class="bg-light">
-                <td colspan="2" class="text-right font-bold" style="text-transform: uppercase;">Total Brut Production</td>
+                <td colspan="2" class="text-right font-bold" style="text-transform: uppercase;">Total Production</td>
                 <td class="text-right font-bold">{{ number_format($data['totaux']['brut'], 0, ',', ' ') }}</td>
                 <td colspan="2"></td>
             </tr>

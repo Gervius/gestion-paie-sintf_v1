@@ -24,138 +24,120 @@ class ExportEtatPersonnelPaie implements FromArray, WithStyles, WithColumnWidths
     public function array(): array
     {
         $rows = [];
-
-        // --- EN-TÊTE ENTREPRISE (Lignes 1 à 4) ---
         $rows[] = ['SINTF - Société Industrielle de Transformation de Fruits'];
         $rows[] = ['BP 1200 Bobo-Dioulasso - Burkina Faso'];
         $rows[] = ['Tél : 76 69 82 23 / 78 46 96 86'];
         $rows[] = [''];
-
-        // --- TITRE (Lignes 5 à 7) ---
         $rows[] = [''];
-        $rows[] = ['DÉTAIL DE PRODUCTION ET PAIEMENT'];
+        $rows[] = ['ETAT DE PAIEMENT PAR PERSONNEL OCCASIONNEL'];
         $rows[] = [''];
 
-        // --- INFO AGENT & FILTRES (Lignes 8 à 12) ---
+        // Info Agent
         $rows[] = ['Période :', 'Du ' . $this->data['periode']['debut'] . ' au ' . $this->data['periode']['fin']];
-        $rows[] = ['Agent :', $this->data['personnel']['nom_complet']];
-        $rows[] = ['Matricule :', $this->data['personnel']['matricule']];
+        $rows[] = ['Agent :', $this->data['personnel']['nom_complet'], '', 'Sexe :', $this->data['personnel']['sexe']];
+        $rows[] = ['Matricule :', $this->data['personnel']['matricule'], '', 'Né(e) le :', $this->data['personnel']['date_naissance']];
         $rows[] = ['Téléphone :', $this->data['personnel']['telephone']];
         $rows[] = [''];
 
-        // --- EN-TÊTES DU TABLEAU (Ligne 13) ---
+        // 🚨 EN-TÊTES CORRIGÉS (9 Colonnes, sans Nbre Pointage)
         $rows[] = [
-            'PRODUIT',
-            'SECTION',
-            'TAUX',
-            'QTÉ TOTALE',
-            'UNITÉ',
-            'JOURS',
-            'RDT MOYEN',
-            'MONTANT BRUT'
+            'PRODUIT', 'SECTION', 'TYPE POINTAGE', 'NBRE JOURS',
+            'TAUX', 'QTÉ TOTALE', 'UNITÉ', 'RDT MOYEN', 'MONTANT'
         ];
 
-        // --- DONNÉES DU TABLEAU (Lignes 14 et +) ---
+        // 🚨 DONNÉES CORRIGÉES
         foreach ($this->data['lignes'] as $ligne) {
             $rows[] = [
                 $ligne['produit'],
                 $ligne['section'],
+                $ligne['type_pointage'],
+                $ligne['nb_jours'],
                 $ligne['taux'],
                 $ligne['quantite_totale'],
                 $ligne['unite'],
-                $ligne['nb_jours'],
                 $ligne['rendement_moyen'],
                 $ligne['montant_a_payer']
             ];
         }
 
-        // --- LIGNE DU TOTAL FINAL ---
-        $rows[] = ['', '', '', '', '', '', 'TOTAL À PAYER', $this->data['total_a_payer']];
+        // 🚨 TOTAUX ALIGNÉS SUR LA COLONNE "I"
+        $rows[] = [''];
+        $rows[] = ['', '', '', '', '', '', '', 'MONTANT TOTAL :', $this->data['finances']['montant_total']];
+        $rows[] = ['', '', '', '', '', '', '', 'AVANCE DÉDUITE :', $this->data['finances']['avance_deduite']];
+        $rows[] = ['', '', '', '', '', '', '', 'NET À PAYER :', $this->data['finances']['net_a_payer']];
 
         return $rows;
     }
 
-    /**
-     * Application du design visuel
-     */
     public function styles(Worksheet $sheet)
     {
         $lastRow = count($this->array());
+        $dataEndRow = $lastRow - 4; // Dernière ligne de données avant l'espace et les totaux
 
         $styles = [
             'A1' => ['font' => ['bold' => true, 'size' => 14, 'color' => ['argb' => 'FF2D4A3E']]],
             'A2:A3' => ['font' => ['size' => 10, 'color' => ['argb' => 'FF4B5563']]],
 
-            // Titre Principal
-            'A6:H6' => [
+            // Titre Principal étendu jusqu'à I
+            'A6:I6' => [
                 'font' => ['bold' => true, 'size' => 14, 'color' => ['argb' => 'FFFFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF2D4A3E']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ],
 
-            // Fiche signalétique Agent
             'A8:A11' => ['font' => ['bold' => true, 'color' => ['argb' => 'FF4B5563']]],
             'B8:B11' => ['font' => ['bold' => true]],
 
-            // En-têtes du tableau
-            'A13:H13' => [
+            // En-têtes du tableau étendus jusqu'à I
+            'A13:I13' => [
                 'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 10],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF2D4A3E']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
             ],
             
-            // Alignements des colonnes de données
-            'C14:F'.$lastRow => ['alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]],
+            // Centrer les données numériques
+            'C14:H'.$dataEndRow => ['alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]],
             
-            // Mise en évidence du Total
-            'G'.$lastRow.':H'.$lastRow => [
-                'font' => ['bold' => true, 'size' => 12],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF9FAFB']],
-            ],
+            // 🚨 NOUVEAUX STYLES POUR LE BLOC DE TOTAUX
+            'H'.($lastRow-2).':I'.$lastRow => ['font' => ['bold' => true]],
+            'H'.($lastRow-1).':I'.($lastRow-1) => ['font' => ['color' => ['argb' => 'FFDC2626']]], // Rouge (Avance)
+            'H'.$lastRow.':I'.$lastRow => ['font' => ['size' => 12, 'color' => ['argb' => 'FF047857']]], // Vert (Net)
         ];
 
-        // Fusions
         $sheet->mergeCells('A1:E1');
         $sheet->mergeCells('A2:E2');
         $sheet->mergeCells('A3:E3');
-        $sheet->mergeCells('A6:H6');
+        $sheet->mergeCells('A6:I6');
         
-        // Bordures du tableau uniquement
-        $sheet->getStyle('A13:H'.($lastRow-1))->applyFromArray([
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-        ]);
+        // Bordures appliquées strictement sur les données, jusqu'à la colonne I
+        if ($dataEndRow >= 14) {
+            $sheet->getStyle('A13:I'.$dataEndRow)->applyFromArray([
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+            ]);
+        }
 
         return $styles;
     }
 
-    /**
-     * Largeur des colonnes
-     */
     public function columnWidths(): array
     {
+        // Dimensions ajustées pour les 9 colonnes (A à I)
         return [
-            'A' => 20, // Produit
-            'B' => 30, // Section
-            'C' => 12, // Taux
-            'D' => 15, // Qté
-            'E' => 10, // Unité
-            'F' => 10, // Jours
-            'G' => 15, // Rdt Moyen
-            'H' => 18, // Montant Brut
+            'A' => 20, 'B' => 25, 'C' => 18, 'D' => 12, 'E' => 12, 
+            'F' => 15, 'G' => 10, 'H' => 15, 'I' => 18
         ];
     }
 
-    /**
-     * Formatage natif Excel
-     */
     public function columnFormats(): array
     {
+        $lastRow = count($this->array());
+        
         return [
-            'C14:C1000' => '#,##0.##', // Gère les décimales dynamiquement (0,21 ou 1500)
-            'D14:D1000' => '#,##0.##', // Quantité
-            'G14:G1000' => '#,##0.##', // Rendement
-            'H14:H1000' => '#,##0_-',  // Montant Brut (entier comptable)
+            'E14:E1000' => '#,##0.##', // Taux
+            'F14:F1000' => '#,##0.##', // Quantité
+            'H14:H1000' => '#,##0.##', // Rendement
+            'I14:I1000' => '#,##0_-',  // Montant Brut (Lignes)
+            'I'.($lastRow-2).':I'.$lastRow => '#,##0_-',  // Montant (Totaux finaux)
         ];
     }
 }

@@ -51,7 +51,7 @@
             </td>
             
             <td style="width: 50%; text-align: center;">
-                <div class="header-title">Détail de Production & Paiement</div>
+                <div class="header-title">ETAT DE PAIEMENT PAR PERSONNEL OCCASIONNEL</div>
                 <div style="font-size: 10px; font-weight: bold; color: #4b5563; text-transform: uppercase;">
                     Période du {{ $data['periode']['debut'] }} au {{ $data['periode']['fin'] }}
                 </div>
@@ -69,15 +69,16 @@
     <!-- Fiche Signalétique de l'Agent -->
     <table class="info-grid">
         <tr>
-            <td style="width: 50%;">
+            <td style="width: 40%;">
                 <span class="info-label">Nom & Prénoms :</span><br>
-                <span class="info-value" style="font-size: 14px;">{{ $data['personnel']['nom_complet'] }}</span>
+                <span class="info-value" style="font-size: 14px;">{{ $data['personnel']['nom_complet'] }}</span><br>
+                <span class="info-label">Matricule :</span> <span class="info-value" style="font-family: monospace;">{{ $data['personnel']['matricule'] }}</span>
             </td>
-            <td style="width: 25%;">
-                <span class="info-label">Matricule :</span><br>
-                <span class="info-value" style="font-family: monospace; font-size: 13px;">{{ $data['personnel']['matricule'] }}</span>
+            <td style="width: 30%;">
+                <span class="info-label">Sexe :</span> <span class="info-value">{{ $data['personnel']['sexe'] }}</span><br>
+                <span class="info-label">Date Naissance :</span> <span class="info-value">{{ $data['personnel']['date_naissance'] }}</span>
             </td>
-            <td style="width: 25%;">
+            <td style="width: 30%;">
                 <span class="info-label">Téléphone :</span><br>
                 <span class="info-value">{{ $data['personnel']['telephone'] }}</span>
             </td>
@@ -89,11 +90,13 @@
             <tr>
                 <th style="width: 60px;">PRODUIT</th>
                 <th>SECTION</th>
+                <th style="width: 45px;" class="text-center">TYPE</th>
+                <th style="width: 35px;" class="text-center">FICHES</th>
+                <th style="width: 35px;" class="text-center">JOURS</th>
                 <th style="width: 40px;" class="text-center">TAUX</th>
-                <th style="width: 70px;" class="text-center">QTÉ TOTALE</th>
-                <th style="width: 40px;" class="text-center">JOURS</th>
-                <th style="width: 60px;" class="text-center">RDT MOYEN</th>
-                <th style="width: 80px;" class="text-right">MONTANT BRUT</th>
+                <th style="width: 60px;" class="text-center">QTÉ TOTALE</th>
+                <th style="width: 50px;" class="text-center">RDT MOYEN</th>
+                <th style="width: 70px;" class="text-right">MONTANT</th>
             </tr>
         </thead>
         <tbody>
@@ -101,27 +104,35 @@
             <tr>
                 <td class="font-bold" style="font-size: 9px;">{{ $ligne['produit'] }}</td>
                 <td class="font-bold">{{ $ligne['section'] }}</td>
+                <td class="text-center" style="font-size: 8px;">{{ $ligne['type_pointage'] }}</td>
+                <td class="text-center font-bold">{{ $ligne['nbre_pointage'] }}</td>
+                <td class="text-center font-bold">{{ $ligne['nb_jours'] }}</td>
                 <td class="text-center" style="font-family: monospace;">
-                    {{ floor($ligne['taux']) == $ligne['taux'] ? number_format($ligne['taux'], 0, ',', ' ') : number_format($ligne['taux'], 2, ',', ' ') }}
+                    {{ floor($ligne['taux']) == $ligne['taux'] ? (int)$ligne['taux'] : number_format($ligne['taux'], 2, ',', ' ') }}
                 </td>
                 <td class="text-center font-bold text-orange">
                     {{ number_format($ligne['quantite_totale'], 2, ',', ' ') }} <span style="font-size: 7px;">{{ $ligne['unite'] }}</span>
                 </td>
-                <td class="text-center font-bold">{{ $ligne['nb_jours'] }}</td>
                 <td class="text-center font-bold">{{ number_format($ligne['rendement_moyen'], 2, ',', ' ') }}</td>
                 <td class="text-right font-bold">{{ number_format($ligne['montant_a_payer'], 0, ',', ' ') }}</td>
             </tr>
             @empty
-            <tr>
-                <td colspan="7" class="text-center" style="padding: 20px;">Aucune activité enregistrée sur cette période.</td>
-            </tr>
+            <tr><td colspan="9" class="text-center" style="padding: 20px;">Aucune activité enregistrée sur cette période.</td></tr>
             @endforelse
         </tbody>
         @if(count($data['lignes']) > 0)
         <tfoot>
+            <tr>
+                <td colspan="8" class="text-right" style="text-transform: uppercase; padding-right: 15px; font-weight: bold;">Montant Total</td>
+                <td class="text-right font-bold">{{ number_format($data['finances']['montant_total'], 0, ',', ' ') }}</td>
+            </tr>
+            <tr>
+                <td colspan="8" class="text-right" style="text-transform: uppercase; padding-right: 15px; font-weight: bold; color: #dc2626;">Avance Déduite</td>
+                <td class="text-right font-bold" style="color: #dc2626;">- {{ number_format($data['finances']['avance_deduite'], 0, ',', ' ') }}</td>
+            </tr>
             <tr class="total-row">
-                <td colspan="6" class="text-right" style="text-transform: uppercase; padding-right: 15px;">Total Brut à Payer</td>
-                <td class="text-right">{{ number_format($data['total_a_payer'], 0, ',', ' ') }} CFA</td>
+                <td colspan="8" class="text-right" style="text-transform: uppercase; padding-right: 15px;">Net à Payer</td>
+                <td class="text-right">{{ number_format($data['finances']['net_a_payer'], 0, ',', ' ') }} CFA</td>
             </tr>
         </tfoot>
         @endif

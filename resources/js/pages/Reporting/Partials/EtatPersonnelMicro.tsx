@@ -190,13 +190,33 @@ export default function EtatPersonnelMicro({ produits, sections, personnels }: {
                                     )}
                                 </tbody>
                                 {reportData.lignes.length > 0 && (
-                                    <tfoot className="bg-slate-50 border-t-2 border-slate-300">
-                                        <tr>
-                                            <td colSpan={6} className="px-6 py-5 text-right text-xs font-black uppercase text-slate-600">Total à payer (Brut)</td>
-                                            <td className="px-6 py-5 text-right font-black text-xl text-primary">{reportData.total_a_payer.toLocaleString()} CFA</td>
-                                        </tr>
-                                    </tfoot>
-                                )}
+                                <tfoot className="border-t-2 border-gray-300">
+                                    <tr>
+                                        <td colSpan={8} className="text-right uppercase pr-4 py-2 font-bold text-gray-700">
+                                            Montant Total :
+                                        </td>
+                                        <td className="text-right font-bold py-2">
+                                            {reportData.finances?.montant_total?.toLocaleString()}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colSpan={8} className="text-right uppercase pr-4 py-2 font-bold text-red-600">
+                                            Avance Déduite :
+                                        </td>
+                                        <td className="text-right font-bold py-2 text-red-600">
+                                            - {reportData.finances?.avance_deduite?.toLocaleString()}
+                                        </td>
+                                    </tr>
+                                    <tr className="bg-gray-100">
+                                        <td colSpan={8} className="text-right uppercase pr-4 py-3 font-black text-gray-900">
+                                            Net à Payer :
+                                        </td>
+                                        <td className="text-right font-black py-3 text-emerald-700">
+                                            {reportData.finances?.net_a_payer?.toLocaleString()} CFA
+                                        </td>
+                                    </tr>
+                                </tfoot>
+        )}
                             </table>
                         </div>
                     </div>
