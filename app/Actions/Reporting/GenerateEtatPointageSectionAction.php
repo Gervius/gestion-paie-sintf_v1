@@ -10,23 +10,24 @@ use App\Models\Produit;
 
 class GenerateEtatPointageSectionAction
 {
-    public function execute(string $dateDebut, string $dateFin, ?int $produitId = null, ?int $sectionId = null): array
+    
+    public function execute(string $dateDebut, string $dateFin, ?int $produitId = null, ?int $sectionId = null, ?string $typePointage = null): array
     {
         // 1. Détermination de la période stricte
         $debutStrict = Carbon::parse($dateDebut)->startOfDay();
         $finStricte = Carbon::parse($dateFin)->endOfDay();
 
-        // 2. Génération dynamique des colonnes (ex: du 12/05 au 15/05)
+        // 2. Génération dynamique des colonnes
         $periode = CarbonPeriod::create($debutStrict, $finStricte);
         $colonnes = [];
-        $clesJours = []; // Pour initialiser notre tableau avec des zéros
+        $clesJours = []; 
         
         foreach ($periode as $date) {
             $cle = $date->format('Y-m-d');
             $clesJours[] = $cle;
             $colonnes[] = [
                 'cle' => $cle,
-                'label' => $date->format('d/m') // Affiche "12/05" en en-tête de colonne
+                'label' => $date->format('d/m') 
             ];
         }
 
@@ -46,13 +47,18 @@ class GenerateEtatPointageSectionAction
         if ($sectionId) {
             $query->where('pointages.section_id', $sectionId);
         }
+        
+        if ($typePointage) {
+            $query->where('pointages.type_pointage', $typePointage);
+        }
 
         $resultatsBruts = $query->select(
             'personnels.id as personnel_id',
             'personnels.matricule',
             'personnels.nom',
             'personnels.prenom',
-            DB::raw('DATE(pointages.date_pointage) as date_jour'), // Ex: "2026-05-12"
+            'pointages.type_pointage', // 🚨 RÉCUPÉRATION DU TYPE
+            DB::raw('DATE(pointages.date_pointage) as date_jour'), 
             DB::raw('SUM(pointage_lignes.quantite) as quantite_jour'),
             DB::raw('SUM(pointage_lignes.montant_brut) as montant_jour')
         )
@@ -61,73 +67,90 @@ class GenerateEtatPointageSectionAction
             'personnels.matricule',
             'personnels.nom',
             'personnels.prenom',
+            'pointages.type_pointage', 
             DB::raw('DATE(pointages.date_pointage)')
         )
         ->get();
 
-        // 4. Construction de la Matrice Pivot (dynamique)
+        // 4. Construction de la Matrice Pivot avec sous-tiroirs
         $agents = [];
         
-        // 🚨 NOUVEAU : Initialisation du tableau des totaux par jour avec des zéros
         $totauxJours = [];
         foreach ($clesJours as $cle) {
-            $totauxJours[$cle] = 0;
+            
+            $totauxJours[$cle] = [
+                'RENDEMENT' => 0, 
+                'JOURNALIER' => 0
+            ];
         }
 
         foreach ($resultatsBruts as $row) {
             $pId = $row->personnel_id;
             $dateJ = $row->date_jour;
+            
+            $typeP = $row->type_pointage ?: 'RENDEMENT'; 
 
             if (!isset($agents[$pId])) {
-                // On pré-remplit les jours avec des zéros
                 $pointagesQte = [];
                 foreach ($clesJours as $cle) {
-                    $pointagesQte[$cle] = 0;
+                    
+                    $pointagesQte[$cle] = [
+                        'RENDEMENT' => 0, 
+                        'JOURNALIER' => 0
+                    ];
                 }
 
                 $agents[$pId] = [
-                    'personnel_id'   => $pId,
-                    'matricule'      => $row->matricule,
-                    'nom_complet'    => $row->nom . ' ' . $row->prenom,
-                    'pointages_qte'  => $pointagesQte, 
-                    'total_quantite' => 0,
-                    'total_montant'  => 0,
+                    'personnel_id'        => $pId,
+                    'matricule'           => $row->matricule,
+                    'nom_complet'         => $row->nom . ' ' . $row->prenom,
+                    'pointages_qte'       => $pointagesQte, 
+                    'total_quantite_rend' => 0, // Nouveau compteur
+                    'total_quantite_jour' => 0, // Nouveau compteur
+                    'total_montant'       => 0,
                 ];
             }
 
-            // On injecte la quantité au bon jour pour l'agent
-            $agents[$pId]['pointages_qte'][$dateJ] = (float) $row->quantite_jour;
-            $agents[$pId]['total_quantite'] += (float) $row->quantite_jour;
-            $agents[$pId]['total_montant'] += (float) $row->montant_jour;
-
             
-            $totauxJours[$dateJ] += (float) $row->quantite_jour;
+            $agents[$pId]['pointages_qte'][$dateJ][$typeP] += (float) $row->quantite_jour;
+            
+            if ($typeP === 'RENDEMENT') {
+                $agents[$pId]['total_quantite_rend'] += (float) $row->quantite_jour;
+            } else {
+                $agents[$pId]['total_quantite_jour'] += (float) $row->quantite_jour;
+            }
+            
+            $agents[$pId]['total_montant'] += (float) $row->montant_jour;
+            
+            // On incrémente le total global de la colonne dans le bon tiroir
+            $totauxJours[$dateJ][$typeP] += (float) $row->quantite_jour;
         }
 
-        // Tri alphabétique
         usort($agents, function($a, $b) {
             return strcmp($a['nom_complet'], $b['nom_complet']);
         });
 
-        // 5. Récupération des infos pour l'en-tête du document
+        // 5. Récupération des infos
         $section = $sectionId ? Section::find($sectionId) : null;
         $produit = $produitId ? Produit::find($produitId) : null;
 
         return [
             'infos' => [
-                'produit' => $produit ? $produit->nom_produit : 'Tous les produits',
-                'section' => $section ? $section->nom_section : 'Toutes les sections',
+                'produit'       => $produit ? $produit->nom_produit : 'Tous les produits',
+                'section'       => $section ? $section->nom_section : 'Toutes les sections',
+                'type_pointage' => $typePointage ? $typePointage : 'Tous les types', 
             ],
             'periode' => [
                 'debut' => $debutStrict->format('d/m/Y'),
                 'fin'   => $finStricte->format('d/m/Y'),
             ],
-            'colonnes' => $colonnes, // Nos dates dynamiques pour le tableau React
+            'colonnes' => $colonnes, 
             'lignes'   => array_values($agents),
             'totaux'   => [
-                'global_quantite' => array_sum(array_column($agents, 'total_quantite')),
-                'global_montant'  => array_sum(array_column($agents, 'total_montant')),
-                'jours'           => $totauxJours, // 🚨 NOUVEAU : On renvoie les totaux
+                'global_quantite_rend' => array_sum(array_column($agents, 'total_quantite_rend')),
+                'global_quantite_jour' => array_sum(array_column($agents, 'total_quantite_jour')),
+                'global_montant'       => array_sum(array_column($agents, 'total_montant')),
+                'jours'                => $totauxJours, 
             ]
         ];
     }

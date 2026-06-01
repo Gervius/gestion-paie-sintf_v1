@@ -25,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::before(fn ($user) => $user->hasRole('Super Admin') ? true : null);
+        Gate::define('view-reporting', function ($user) {
+            return $user->can('reportings.lire');
+        });
 
         $this->configureDefaults();
     }

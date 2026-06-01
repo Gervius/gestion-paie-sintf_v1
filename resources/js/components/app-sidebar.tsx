@@ -116,7 +116,7 @@ export function AppSidebar() {
                     title: 'Intelligence Métier', 
                     href: safeRoute('reportingIndex', '/reporting'), 
                     icon: BarChart3, 
-                    permission: 'rapports.lire' 
+                    permission: 'reportings.lire' 
                 },
             ],
         },

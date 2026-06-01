@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Filter, Loader2, FileText, FileSpreadsheet, Package, Calendar, Wrench, Layers, TableProperties } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import React from 'react';
 
 export default function EtatPointagePivot({ produits, sections }: { produits: any[], sections: any[] }) {
     const [filters, setFilters] = useState({
@@ -10,6 +11,7 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
         date_fin: new Date().toISOString().split('T')[0],
         produit_id: '',
         section_id: '',
+        type_pointage: '', // 🚨 NOUVEAU FILTRE
     });
 
     const [reportData, setReportData] = useState<any>(null);
@@ -19,10 +21,15 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
     const dateDebutObj = new Date(filters.date_debut);
     const dateFinObj = new Date(filters.date_fin);
     const diffTime = Math.abs(dateFinObj.getTime() - dateDebutObj.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 pour inclure le premier jour
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     
-    // Le PDF n'est cliquable que si on a moins de 7 jours et que les données sont chargées
-    const canExportPdf = diffDays <= 7;
+    // 🚨 SÉCURITÉ ARCHITECTE : PDF = 7 jours EXACTS + Type spécifique
+    const canExportPdf = diffDays === 7 && filters.type_pointage !== '';
+
+    // Détermination de l'affichage des colonnes
+    const showRend = !filters.type_pointage || filters.type_pointage === 'RENDEMENT';
+    const showJour = !filters.type_pointage || filters.type_pointage === 'JOURNALIER';
+    const isTous = !filters.type_pointage;
 
     const fetchReport = async () => {
         setIsLoading(true);
@@ -43,7 +50,8 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
         if (filters.date_fin) params.append('date_fin', filters.date_fin);
         if (filters.produit_id) params.append('produit_id', filters.produit_id);
         if (filters.section_id) params.append('section_id', filters.section_id);
-        return `/api/reporting/etat-pointage-section/${format}?${params.toString()}`; // Routes à créer plus tard
+        if (filters.type_pointage) params.append('type_pointage', filters.type_pointage);
+        return `/api/reporting/etat-pointage-section/${format}?${params.toString()}`;
     };
 
     return (
@@ -56,9 +64,19 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
                 </div>
                 <div className="space-y-4">
                     <div className="space-y-3">
-                        <label className="text-xs font-black uppercase text-slate-500 flex items-center gap-2"><Calendar size={14}/> Période (Max 31 jours)</label>
+                        <label className="text-xs font-black uppercase text-slate-500 flex items-center gap-2"><Calendar size={14}/> Période (Max 31J)</label>
                         <input type="date" value={filters.date_debut} onChange={(e) => setFilters({...filters, date_debut: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary" />
                         <input type="date" value={filters.date_fin} onChange={(e) => setFilters({...filters, date_fin: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary" />
+                    </div>
+
+                    {/* 🚨 LE NOUVEAU SELECT */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-500 flex items-center gap-2"><Layers size={14}/> Type de Pointage</label>
+                        <select value={filters.type_pointage} onChange={(e) => setFilters({...filters, type_pointage: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary text-emerald-700 bg-emerald-50">
+                            <option value="">Tous les types (Cumulés)</option>
+                            <option value="RENDEMENT">Rendement uniquement</option>
+                            <option value="JOURNALIER">Journalier uniquement</option>
+                        </select>
                     </div>
 
                     <div className="space-y-2">
@@ -94,88 +112,94 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
                 ) : reportData ? (
                     <div className="bg-white rounded-2xl border border-border shadow-md overflow-hidden flex flex-col">
                         
-                        {/* EN-TÊTE AVEC BOUTONS */}
                         <div className="bg-slate-800 text-white p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
                                 <h3 className="text-xl font-black uppercase tracking-widest">État de Pointage par Section</h3>
-                                <p className="text-slate-300 text-xs font-medium mt-1 uppercase">Du {reportData.periode.debut} au {reportData.periode.fin}</p>
+                                <p className="text-slate-300 text-xs font-medium mt-1 uppercase">
+                                    Du {reportData.periode.debut} au {reportData.periode.fin} | 
+                                    <span className="text-emerald-400 ml-1">{reportData.infos.type_pointage}</span>
+                                </p>
                             </div>
                             <div className="flex items-center gap-3">
                                 {canExportPdf ? (
                                     <a href={getExportUrl('pdf')} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-black transition-colors" title="Télécharger la fiche de la semaine">
-                                        <FileText size={16} className="text-red-400" /> PDF
+                                        <FileText size={16} className="text-red-400" /> PDF (Hebdo)
                                     </a>
                                 ) : (
-                                    <button disabled title="Le PDF est limité à 7 jours max (Utilisez l'Excel pour les longues périodes)" className="flex items-center gap-2 bg-slate-700 px-3 py-2 rounded-lg text-xs font-black text-slate-400 cursor-not-allowed">
-                                        <FileText size={16} /> PDF (Max 7J)
+                                    <button disabled title="PDF : 7 Jours max + Type spécifique obligatoire" className="flex items-center gap-2 bg-slate-700 px-3 py-2 rounded-lg text-xs font-black text-slate-400 cursor-not-allowed">
+                                        <FileText size={16} /> PDF Verrouillé
                                     </button>
                                 )}
                                 <a href={getExportUrl('excel')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs font-black transition-colors">
                                     <FileSpreadsheet size={16} className="text-emerald-400" /> EXCEL
                                 </a>
-                                <Badge className="bg-white text-slate-800 font-black px-4 py-1 ml-2">PIVOT</Badge>
                             </div>
                         </div>
 
-                        {/* TABLEAU SCROLLABLE (Défilement horizontal) */}
                         <div className="overflow-x-auto w-full pb-4">
                             <table className="w-full text-left border-collapse min-w-max">
                                 <thead className="bg-slate-50 border-b-2 border-slate-200 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                                     <tr>
-                                        {/* Colonnes figées à gauche */}
-                                        <th className="px-3 py-3 sticky left-0 bg-slate-50 z-20 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                                            Matricule & Nom
-                                        </th>
-                                        <th className="px-3 py-3 text-center bg-emerald-50 border-r border-slate-200">
-                                            Total Qté
-                                        </th>
-                                        <th className="px-3 py-3 text-center bg-emerald-50 border-r border-slate-200">
-                                            Total Brut
-                                        </th>
+                                        <th className="px-3 py-3 sticky left-0 bg-slate-50 z-20 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Matricule & Nom</th>
+                                        
+                                        {/* En-têtes dynamiques des Totaux */}
+                                        {showRend && <th className="px-2 py-3 text-center bg-emerald-50 border-r border-slate-200 text-emerald-800">Tot. Rend</th>}
+                                        {showJour && <th className="px-2 py-3 text-center bg-emerald-50 border-r border-slate-200 text-emerald-800">Tot. Jour</th>}
+                                        
+                                        <th className="px-3 py-3 text-center bg-emerald-100 border-r border-slate-200 text-emerald-900">Total Brut</th>
 
-                                        {/* Colonnes dynamiques des Jours */}
+                                        {/* En-têtes dynamiques des Jours */}
                                         {reportData.colonnes.map((col: any) => (
-                                            <th key={col.cle} className="px-2 py-3 text-center border-r border-slate-100 min-w-[40px]">
+                                            <th key={col.cle} colSpan={isTous ? 2 : 1} className="px-2 py-3 text-center border-r border-slate-300 min-w-[60px] bg-slate-100">
                                                 {col.label}
+                                                {isTous && <div className="grid grid-cols-2 gap-1 mt-1 text-[8px] text-slate-400 border-t border-slate-200 pt-1"><span>Rend</span><span>Jour</span></div>}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {reportData.lignes.length === 0 ? (
-                                        <tr><td colSpan={reportData.colonnes.length + 3} className="px-6 py-16 text-center text-slate-400 italic font-bold">Aucun pointage trouvé pour ces filtres.</td></tr>
-                                    ) : (
-                                        reportData.lignes.map((ligne: any) => (
-                                            <tr key={ligne.personnel_id} className="hover:bg-slate-50">
-                                                {/* Colonne figée */}
-                                                <td className="px-3 py-2 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                                                    <div className="font-black text-xs text-slate-800 whitespace-nowrap">{ligne.nom_complet}</div>
-                                                    <div className="text-[10px] text-slate-400 font-mono">{ligne.matricule}</div>
-                                                </td>
-                                                {/* Totaux */}
-                                                <td className="px-3 py-2 text-center font-bold text-xs text-emerald-700 bg-emerald-50/30 border-r border-slate-200">
-                                                    {ligne.total_quantite > 0 ? ligne.total_quantite : '-'}
-                                                </td>
-                                                <td className="px-3 py-2 text-right font-black text-xs text-emerald-800 bg-emerald-50/30 border-r border-slate-200">
-                                                    {ligne.total_montant > 0 ? ligne.total_montant.toLocaleString() : '-'}
-                                                </td>
+                                    {reportData.lignes.map((ligne: any) => (
+                                        <tr key={ligne.personnel_id} className="hover:bg-slate-50">
+                                            <td className="px-3 py-2 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-200">
+                                                <div className="font-black text-xs text-slate-800 whitespace-nowrap">{ligne.nom_complet}</div>
+                                                <div className="text-[10px] text-slate-400 font-mono">{ligne.matricule}</div>
+                                            </td>
+                                            
+                                            {/* Valeurs Totaux */}
+                                            {showRend && <td className="px-2 py-2 text-center font-bold text-xs text-emerald-700 bg-emerald-50/30 border-r border-slate-200">{ligne.total_quantite_rend > 0 ? ligne.total_quantite_rend : '-'}</td>}
+                                            {showJour && <td className="px-2 py-2 text-center font-bold text-xs text-emerald-700 bg-emerald-50/30 border-r border-slate-200">{ligne.total_quantite_jour > 0 ? ligne.total_quantite_jour : '-'}</td>}
+                                            <td className="px-3 py-2 text-right font-black text-xs text-emerald-900 bg-emerald-100/30 border-r border-slate-300">{ligne.total_montant > 0 ? ligne.total_montant.toLocaleString() : '-'}</td>
+                                            
+                                            {/* Valeurs Jours */}
+                                            {reportData.colonnes.map((col: any) => {
+                                                const vRend = ligne.pointages_qte[col.cle]['RENDEMENT'];
+                                                const vJour = ligne.pointages_qte[col.cle]['JOURNALIER'];
                                                 
-                                                {/* Jours Dynamiques */}
-                                                {reportData.colonnes.map((col: any) => {
-                                                    const val = ligne.pointages_qte[col.cle];
+                                                if (isTous) {
                                                     return (
-                                                        <td key={col.cle} className={`px-2 py-2 text-center text-[10px] border-r border-slate-100 ${val > 0 ? 'font-black text-slate-700 bg-orange-50/50' : 'text-slate-300'}`}>
-                                                            {val > 0 ? val : '-'}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))
-                                    )}
+                                                        <React.Fragment key={col.cle}>
+                                                            <td className={`px-2 py-2 text-center text-[10px] border-r border-slate-100 ${vRend > 0 ? 'font-black text-orange-600 bg-orange-50/30' : 'text-slate-300'}`}>
+                                                                {vRend > 0 ? vRend : '-'}
+                                                            </td>
+                                                            <td className={`px-2 py-2 text-center text-[10px] border-r border-slate-300 ${vJour > 0 ? 'font-black text-blue-600 bg-blue-50/30' : 'text-slate-300'}`}>
+                                                                {vJour > 0 ? vJour : '-'}
+                                                            </td>
+                                                        </React.Fragment>
+                                                    )
+                                                }
+                                                // Affichage Simple
+                                                const val = showRend ? vRend : vJour;
+                                                return (
+                                                    <td key={col.cle} className={`px-2 py-2 text-center text-[10px] border-r border-slate-100 ${val > 0 ? 'font-black text-slate-700 bg-orange-50/50' : 'text-slate-300'}`}>
+                                                        {val > 0 ? val : '-'}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
-
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-64 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">

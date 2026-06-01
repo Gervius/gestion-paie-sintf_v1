@@ -182,7 +182,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/api/reporting/etat-pointage-section', [App\Http\Controllers\ReportingController::class, 'getEtatPointageSection'])->name('apiReportingEtatPointageSection');
         Route::get('/api/reporting/etat-pointage-section/excel', [App\Http\Controllers\ReportingController::class, 'exportEtatPointageSectionExcel'])->name('apiReportingEtatPointageSectionExcel');
         Route::get('/api/reporting/etat-pointage-section/pdf', [App\Http\Controllers\ReportingController::class, 'exportEtatPointageSectionPdf'])->name('apiReportingEtatPointageSectionPdf');
-        
+        Route::get('/personnels/export/excel', [PersonnelController::class, 'exportExcel'])->name('personnelsExportExcel');
     }); 
 }); 
 

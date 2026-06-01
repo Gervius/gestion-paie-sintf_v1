@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\PersonnelExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Carbon\Carbon;
 use App\Models\Personnel;
 use App\Models\Site;
 use App\Models\Section;
@@ -129,6 +132,14 @@ class PersonnelController extends Controller
     {
         $this->authorize('view', $personnel);
         return $action->execute($personnel);
+    }
+
+    public function exportExcel()
+    {
+       
+        $fileName = 'SINTF_Liste_Personnel_' . Carbon::now()->format('d_m_Y') . '.xlsx';
+
+        return Excel::download(new PersonnelExport, $fileName);
     }
 
     

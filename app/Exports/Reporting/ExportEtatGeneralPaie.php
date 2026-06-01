@@ -91,7 +91,7 @@ class ExportEtatGeneralPaie implements FromArray, WithStyles, WithColumnWidths, 
             // Style du Titre Principal (Fond Vert Foncé SINTF)
             'A6:E6' => [
                 'font' => ['bold' => true, 'size' => 16, 'color' => ['argb' => 'FFFFFFFF']],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF2D4A3E']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFA54A3E']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
             ],
 

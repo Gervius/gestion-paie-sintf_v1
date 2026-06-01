@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { PlusIcon, UploadIcon, Search, CheckCircle2, Pencil, Trash2, Download } from 'lucide-react';
+import { PlusIcon, UploadIcon, Search, CheckCircle2, Pencil, Trash2, Download, FileSpreadsheet } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import Heading from '@/components/heading';
@@ -74,8 +74,17 @@ export default function Index({ personnels }: { personnels: PaginatedData<Person
                     description={`${personnels.total} employé(s) actif(s) dans le système`} 
                 />
                 <div className="flex gap-3">
+                    
+                    {/* 🚨 NOUVEAU : Bouton Export Excel */}
+                    {/* On utilise une couleur émeraude pour rappeler Excel visuellement */}
+                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" asChild>
+                        <a href="/personnels/export/excel">
+                            <FileSpreadsheet className="mr-2 size-4" /> Exporter Excel
+                        </a>
+                    </Button>
+
                     {canCreate && (
-                        <Button className="bg-primary hover:bg-primary/90 text-white" asChild>
+                        <Button className="bg-primary hover:bg-primary/90 text-white shadow-sm" asChild>
                             <Link href={personnelCreate().url}>
                                 <PlusIcon className="mr-2 size-4" /> Nouvel employé
                             </Link>

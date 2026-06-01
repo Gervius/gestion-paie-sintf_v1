@@ -38,6 +38,9 @@
 <body>
 
     @php $societe = societe(); @endphp
+    @php 
+        $typeFiltre = $data['infos']['type_pointage']; 
+    @endphp
 
     <footer>
         <strong>{{ $societe->raison_sociale ?? 'SINTF' }}</strong> 
@@ -72,10 +75,13 @@
 
     <table class="info-grid">
         <tr>
-            <td style="width: 50%;">
+            <td style="width: 33%;">
+                <span class="info-label">Type :</span> <span class="info-value" style="color: #c2410c;">{{ $typeFiltre }}</span>
+            </td>
+            <td style="width: 33%; text-align: center;">
                 <span class="info-label">Produit :</span> <span class="info-value">{{ $data['infos']['produit'] }}</span>
             </td>
-            <td style="width: 50%; text-align: right;">
+            <td style="width: 33%; text-align: right;">
                 <span class="info-label">Section :</span> <span class="info-value">{{ $data['infos']['section'] }}</span>
             </td>
         </tr>
@@ -87,7 +93,6 @@
                 <th class="text-left" style="width: 25%;">MATRICULE & NOM</th>
                 <th style="width: 8%;">QTÉ TOT.</th>
                 <th style="width: 12%;">MONTANT TOT.</th>
-                <!-- Boucle sur les Jours -->
                 @foreach($data['colonnes'] as $col)
                     <th>{{ $col['label'] }}</th>
                 @endforeach
@@ -96,6 +101,10 @@
         </thead>
         <tbody>
             @forelse($data['lignes'] as $ligne)
+                @php
+                    // 🚨 On lit le bon tiroir des totaux
+                    $totQte = $typeFiltre === 'RENDEMENT' ? $ligne['total_quantite_rend'] : $ligne['total_quantite_jour'];
+                @endphp
             <tr>
                 <td class="text-left">
                     <strong style="font-size: 10px;">{{ $ligne['nom_complet'] }}</strong><br>
@@ -103,54 +112,40 @@
                 </td>
                 
                 <td class="text-center font-bold">
-                    {{ $ligne['total_quantite'] > 0 ? (floor($ligne['total_quantite']) == $ligne['total_quantite'] ? (int)$ligne['total_quantite'] : number_format($ligne['total_quantite'], 2, ',', ' ')) : '-' }}
+                    {{ $totQte > 0 ? (floor($totQte) == $totQte ? (int)$totQte : number_format($totQte, 2, ',', ' ')) : '-' }}
                 </td>
-                
                 <td class="text-right font-bold" style="color: #065f46;">
                     {{ $ligne['total_montant'] > 0 ? number_format($ligne['total_montant'], 0, ',', ' ') : '-' }}
                 </td>
 
-                <!-- Valeurs des Jours Dynamiques -->
                 @foreach($data['colonnes'] as $col)
-                    @php $val = $ligne['pointages_qte'][$col['cle']]; @endphp
+                    @php $val = $ligne['pointages_qte'][$col['cle']][$typeFiltre]; @endphp
                     <td class="text-center" style="{{ $val > 0 ? 'background-color: #fff7ed; font-weight: bold;' : 'color: #9ca3af;' }}">
                         {{ $val > 0 ? (floor($val) == $val ? (int)$val : number_format($val, 2, ',', ' ')) : '-' }}
                     </td>
                 @endforeach
                 
-                <!-- 🚨 NOUVELLE CELLULE : Espace de Signature -->
-                <td style="vertical-align: bottom; text-align: center; color: #9ca3af; padding-bottom: 5px;">
-                    .............................
-                </td>
+                <td style="vertical-align: bottom; text-align: center; color: #9ca3af; padding-bottom: 5px;">.............................</td>
             </tr>
             @empty
-            <tr>
-                <!-- 🚨 CORRECTION DU COLSPAN (+4 au lieu de +3) -->
-                <td colspan="{{ count($data['colonnes']) + 4 }}" class="text-center" style="padding: 20px;">Aucun pointage trouvé.</td>
-            </tr>
+            <tr><td colspan="{{ count($data['colonnes']) + 4 }}" class="text-center" style="padding: 20px;">Aucun pointage trouvé.</td></tr>
             @endforelse
         </tbody>
         <tfoot>
+            @php
+                $globalQte = $typeFiltre === 'RENDEMENT' ? $data['totaux']['global_quantite_rend'] : $data['totaux']['global_quantite_jour'];
+            @endphp
             <tr style="background-color: #e5e7eb; font-size: 10px;">
                 <td class="text-right font-bold" style="text-transform: uppercase;">Total Global</td>
-                
-                <td class="text-center font-bold">
-                    {{ $data['totaux']['global_quantite'] > 0 ? (floor($data['totaux']['global_quantite']) == $data['totaux']['global_quantite'] ? (int)$data['totaux']['global_quantite'] : number_format($data['totaux']['global_quantite'], 2, ',', ' ')) : '-' }}
-                </td>
-                
-                <td class="text-right font-bold" style="color: #065f46;">
-                    {{ $data['totaux']['global_montant'] > 0 ? number_format($data['totaux']['global_montant'], 0, ',', ' ') : '-' }}
-                </td>
+                <td class="text-center font-bold">{{ $globalQte > 0 ? (floor($globalQte) == $globalQte ? (int)$globalQte : number_format($globalQte, 2, ',', ' ')) : '-' }}</td>
+                <td class="text-right font-bold" style="color: #065f46;">{{ $data['totaux']['global_montant'] > 0 ? number_format($data['totaux']['global_montant'], 0, ',', ' ') : '-' }}</td>
 
-                <!-- Boucle sur les totaux par jour -->
                 @foreach($data['colonnes'] as $col)
-                    @php $totVal = $data['totaux']['jours'][$col['cle']]; @endphp
+                    @php $totVal = $data['totaux']['jours'][$col['cle']][$typeFiltre]; @endphp
                     <td class="text-center font-bold" style="color: #c2410c;">
                         {{ $totVal > 0 ? (floor($totVal) == $totVal ? (int)$totVal : number_format($totVal, 2, ',', ' ')) : '-' }}
                     </td>
                 @endforeach
-                
-                <!-- Cellule vide pour la colonne Signature -->
                 <td style="background-color: #f3f4f6;"></td>
             </tr>
         </tfoot>

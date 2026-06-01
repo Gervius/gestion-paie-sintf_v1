@@ -16,9 +16,19 @@ use App\Actions\Reporting\GenerateEtatPointageSectionAction;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\Reporting\ExportEtatPointagePivot;
 use App\Actions\Reporting\GenerateEtatGeneralPaieAction;
+use Illuminate\Routing\Controllers\HasMiddleware; 
+use Illuminate\Routing\Controllers\Middleware;
 
-class ReportingController extends Controller
+class ReportingController extends Controller implements HasMiddleware
 {
+
+    public static function middleware(): array
+    {
+        return [
+
+            new Middleware('can:view-reporting'), 
+        ];
+    }
     /**
      * Affiche la page principale du reporting (Le Dashboard React)
      */
@@ -194,10 +204,11 @@ class ReportingController extends Controller
     public function getEtatPointageSection(Request $request, GenerateEtatPointageSectionAction $action)
     {
         $filters = $request->validate([
-            'date_debut' => 'required|date',
-            'date_fin'   => 'required|date|after_or_equal:date_debut',
-            'produit_id' => 'nullable|integer',
-            'section_id' => 'nullable|integer',
+            'date_debut'    => 'required|date',
+            'date_fin'      => 'required|date|after_or_equal:date_debut',
+            'produit_id'    => 'nullable|integer',
+            'section_id'    => 'nullable|integer',
+            'type_pointage' => 'nullable|string|in:RENDEMENT,JOURNALIER', // Le nouveau filtre
         ]);
 
         // 🚨 PROTECTION : Limite de 31 jours imposée
@@ -214,7 +225,8 @@ class ReportingController extends Controller
             $filters['date_debut'],
             $filters['date_fin'],
             $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null
+            $filters['section_id'] ?? null,
+            $filters['type_pointage'] ?? null
         );
 
         return response()->json($data);
@@ -224,10 +236,11 @@ class ReportingController extends Controller
     public function exportEtatPointageSectionExcel(Request $request, GenerateEtatPointageSectionAction $action)
     {
         $filters = $request->validate([
-            'date_debut' => 'required|date',
-            'date_fin'   => 'required|date|after_or_equal:date_debut',
-            'produit_id' => 'nullable|integer',
-            'section_id' => 'nullable|integer',
+            'date_debut'    => 'required|date',
+            'date_fin'      => 'required|date|after_or_equal:date_debut',
+            'produit_id'    => 'nullable|integer',
+            'section_id'    => 'nullable|integer',
+            'type_pointage' => 'nullable|string|in:RENDEMENT,JOURNALIER',
         ]);
 
         // Même sécurité que l'API
@@ -241,7 +254,8 @@ class ReportingController extends Controller
             $filters['date_debut'],
             $filters['date_fin'],
             $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null
+            $filters['section_id'] ?? null,
+            $filters['type_pointage'] ?? null
         );
 
         $fileName = 'Matrice_Pivot_' . $debut->format('d_m') . '_au_' . $fin->format('d_m_Y') . '.xlsx';
@@ -253,10 +267,11 @@ class ReportingController extends Controller
     public function exportEtatPointageSectionPdf(Request $request, GenerateEtatPointageSectionAction $action)
     {
         $filters = $request->validate([
-            'date_debut' => 'required|date',
-            'date_fin'   => 'required|date|after_or_equal:date_debut',
-            'produit_id' => 'nullable|integer',
-            'section_id' => 'nullable|integer',
+            'date_debut'    => 'required|date',
+            'date_fin'      => 'required|date|after_or_equal:date_debut',
+            'produit_id'    => 'nullable|integer',
+            'section_id'    => 'nullable|integer',
+            'type_pointage' => 'nullable|string|in:RENDEMENT,JOURNALIER', 
         ]);
 
         $debut = \Carbon\Carbon::parse($filters['date_debut']);
@@ -267,11 +282,16 @@ class ReportingController extends Controller
             abort(400, "L'export PDF est limité à 7 jours maximum pour garantir la lisibilité du tableau. Veuillez réduire la période ou utiliser l'export Excel.");
         }
 
+        if (empty($filters['type_pointage'])) {
+            abort(400, "Veuillez sélectionner un type de pointage (Rendement ou Journalier) pour le PDF.");
+        }
+
         $data = $action->execute(
             $filters['date_debut'],
             $filters['date_fin'],
             $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null
+            $filters['section_id'] ?? null,
+            $filters['type_pointage']
         );
 
         // On charge la vue en forçant le mode Paysage (Landscape)
