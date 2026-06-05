@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Filter, Loader2, FileText, FileSpreadsheet, Package, Calendar, Wrench, Layers, TableProperties } from 'lucide-react';
+import { Filter, Loader2, FileText, FileSpreadsheet, Package, Calendar, Wrench, Layers, TableProperties, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
 
-export default function EtatPointagePivot({ produits, sections }: { produits: any[], sections: any[] }) {
+export default function EtatPointagePivot({ sites, produits, sections }: {sites: any[], produits: any[], sections: any[] }) {
     const [filters, setFilters] = useState({
         date_debut: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         date_fin: new Date().toISOString().split('T')[0],
+        site_id: '',
         produit_id: '',
         section_id: '',
         type_pointage: '', // 🚨 NOUVEAU FILTRE
@@ -48,10 +49,18 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
         const params = new URLSearchParams();
         if (filters.date_debut) params.append('date_debut', filters.date_debut);
         if (filters.date_fin) params.append('date_fin', filters.date_fin);
+        if (filters.site_id) params.append('site_id', filters.site_id);
         if (filters.produit_id) params.append('produit_id', filters.produit_id);
         if (filters.section_id) params.append('section_id', filters.section_id);
         if (filters.type_pointage) params.append('type_pointage', filters.type_pointage);
         return `/api/reporting/etat-pointage-section/${format}?${params.toString()}`;
+    };
+
+    const formatNombre = (num: number) => {
+        const n = Number(num);
+        return Number.isInteger(n) 
+            ? n.toLocaleString('de-DE') 
+            : n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
     return (
@@ -67,6 +76,13 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
                         <label className="text-xs font-black uppercase text-slate-500 flex items-center gap-2"><Calendar size={14}/> Période (Max 31J)</label>
                         <input type="date" value={filters.date_debut} onChange={(e) => setFilters({...filters, date_debut: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary" />
                         <input type="date" value={filters.date_fin} onChange={(e) => setFilters({...filters, date_fin: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary" />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-500 flex items-center gap-2"><Building2 size={14}/> Site</label>
+                        <select value={filters.site_id} onChange={(e) => setFilters({...filters, site_id: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary">
+                            <option value="">Tous les sites</option>
+                            {sites.map(site => <option key={site.id} value={site.id}>{site.nom_site}</option>)}
+                        </select>
                     </div>
 
                     {/* 🚨 LE NOUVEAU SELECT */}
@@ -166,9 +182,9 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
                                             </td>
                                             
                                             {/* Valeurs Totaux */}
-                                            {showRend && <td className="px-2 py-2 text-center font-bold text-xs text-emerald-700 bg-emerald-50/30 border-r border-slate-200">{ligne.total_quantite_rend > 0 ? ligne.total_quantite_rend : '-'}</td>}
-                                            {showJour && <td className="px-2 py-2 text-center font-bold text-xs text-emerald-700 bg-emerald-50/30 border-r border-slate-200">{ligne.total_quantite_jour > 0 ? ligne.total_quantite_jour : '-'}</td>}
-                                            <td className="px-3 py-2 text-right font-black text-xs text-emerald-900 bg-emerald-100/30 border-r border-slate-300">{ligne.total_montant > 0 ? ligne.total_montant.toLocaleString() : '-'}</td>
+                                            {showRend && <td className="px-2 py-2 text-center font-bold text-xs text-emerald-700 bg-emerald-50/30 border-r border-slate-200">{ligne.total_quantite_rend > 0 ? formatNombre(ligne.total_quantite_rend) : '-'}</td>}
+                                            {showJour && <td className="px-2 py-2 text-center font-bold text-xs text-emerald-700 bg-emerald-50/30 border-r border-slate-200">{ligne.total_quantite_jour > 0 ? formatNombre(ligne.total_quantite_jour) : '-'}</td>}
+                                            <td className="px-3 py-2 text-right font-black text-xs text-emerald-900 bg-emerald-100/30 border-r border-slate-300">{ligne.total_montant > 0 ? formatNombre(ligne.total_montant) : '-'}</td>
                                             
                                             {/* Valeurs Jours */}
                                             {reportData.colonnes.map((col: any) => {
@@ -179,10 +195,10 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
                                                     return (
                                                         <React.Fragment key={col.cle}>
                                                             <td className={`px-2 py-2 text-center text-[10px] border-r border-slate-100 ${vRend > 0 ? 'font-black text-orange-600 bg-orange-50/30' : 'text-slate-300'}`}>
-                                                                {vRend > 0 ? vRend : '-'}
+                                                                {vRend > 0 ? formatNombre(vRend) : '-'}
                                                             </td>
                                                             <td className={`px-2 py-2 text-center text-[10px] border-r border-slate-300 ${vJour > 0 ? 'font-black text-blue-600 bg-blue-50/30' : 'text-slate-300'}`}>
-                                                                {vJour > 0 ? vJour : '-'}
+                                                                {vJour > 0 ? formatNombre(vJour) : '-'}
                                                             </td>
                                                         </React.Fragment>
                                                     )
@@ -191,7 +207,7 @@ export default function EtatPointagePivot({ produits, sections }: { produits: an
                                                 const val = showRend ? vRend : vJour;
                                                 return (
                                                     <td key={col.cle} className={`px-2 py-2 text-center text-[10px] border-r border-slate-100 ${val > 0 ? 'font-black text-slate-700 bg-orange-50/50' : 'text-slate-300'}`}>
-                                                        {val > 0 ? val : '-'}
+                                                        {val > 0 ? formatNombre(val) : '-'}
                                                     </td>
                                                 );
                                             })}

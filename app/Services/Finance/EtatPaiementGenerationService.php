@@ -27,7 +27,8 @@ class EtatPaiementGenerationService
                         ->where('statut', 'CLOTURE')
                         ->whereBetween('date_pointage', [$debutH24, $finH24]);
                     })
-                    ->with(['personnel', 'pointage'])  // <-- plus de .site
+                    ->with(['personnel', 'pointage'])
+                    ->lockForUpdate() // <-- AJOUT DU BOUCLIER ANTI-DOUBLONS ICI
                     ->get()
                     ->groupBy(fn($ligne) => $ligne->pointage->site_id);
 

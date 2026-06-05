@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 class GenerateEtatPersonnelAction
 {
-    public function execute(int $personnelId, string $dateDebut, string $dateFin, ?int $produitId = null, ?int $sectionId = null): array
+    public function execute(int $personnelId, string $dateDebut, string $dateFin,?int $siteId = null, ?int $produitId = null, ?int $sectionId = null): array
     {
         $debutStrict = Carbon::parse($dateDebut)->startOfDay();
         $finStricte = Carbon::parse($dateFin)->endOfDay();
@@ -27,6 +27,9 @@ class GenerateEtatPersonnelAction
             ->whereNull('pointages.deleted_at')
             ->where('pointage_lignes.statut_ligne', '!=', 'ABSENT');
 
+        if ($siteId) {
+            $query->where('pointages.site_id', $siteId);
+        }
         if ($produitId) {
             $query->where('sections.produit_id', $produitId);
         }

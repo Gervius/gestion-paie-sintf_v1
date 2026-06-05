@@ -33,7 +33,7 @@ class ExportEtatPointagePivot implements FromArray, WithStyles, WithColumnWidths
         $rows[] = [''];
         $rows[] = ['ETAT DE POINTAGE PAR SECTION'];
         $rows[] = [''];
-        $rows[] = ['Période :', 'Du ' . $this->data['periode']['debut'] . ' au ' . $this->data['periode']['fin']];
+        $rows[] = ['Période :', 'Du ' . $this->data['periode']['debut'] . ' au ' . $this->data['periode']['fin'], '', 'Site :', $this->data['infos']['site'] ?? 'Tous les sites'];
         $rows[] = ['Type Pointage :', $this->typeFiltre];
         $rows[] = ['Produit :', $this->data['infos']['produit']];
         $rows[] = ['Section :', $this->data['infos']['section']];

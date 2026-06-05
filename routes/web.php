@@ -96,6 +96,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         
         Route::delete('/pointages/{pointage}', [PointageController::class, 'destroy'])->name('pointageDestroy');
+        Route::delete('/pointages/{pointage}/vider', [PointageController::class, 'viderListe'])->name('pointageViderListe');
 
         // --- Endpoints API Pointages ---
         Route::prefix('api')->group(function () {

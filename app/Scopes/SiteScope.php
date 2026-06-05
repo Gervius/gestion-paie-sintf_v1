@@ -46,23 +46,25 @@ class SiteScope implements Scope
             $builder->whereIn($model->getTable() . '.site_id', $siteIds);
         } 
         elseif ($model instanceof \App\Models\PointageLigne) {
+            // INTENTION : Préfixage strict de la table 'pointages' pour garantir
+            // l'isolation de la colonne lors des jointures SQL complexes générées par Eloquent.
             $builder->whereHas('pointage', function ($q) use ($siteIds) {
-                $q->whereIn('site_id', $siteIds);
+                $q->whereIn('pointages.site_id', $siteIds);
             });
         } 
         elseif ($model instanceof \App\Models\Avance) {
+            // INTENTION : Préfixage de la table 'personnels'
             $builder->whereHas('personnel', function ($q) use ($siteIds) {
-                $q->whereIn('site_travail_id', $siteIds);
+                $q->whereIn('personnels.site_travail_id', $siteIds);
             });
         } 
         elseif ($model instanceof \App\Models\TicketPaiement) {
-            // Filtre par le site de l'état de paiement
+            // INTENTION : Préfixage de la table 'etats_paiements'
             $builder->whereHas('etatPaiement', function ($q) use ($siteIds) {
-                $q->whereIn('site_id', $siteIds);
+                $q->whereIn('etats_paiements.site_id', $siteIds);
             });
         } 
         elseif ($model instanceof \App\Models\EtatPaiement) {
-            // Directement par la colonne site_id
             $builder->whereIn($model->getTable() . '.site_id', $siteIds);
         }
     }

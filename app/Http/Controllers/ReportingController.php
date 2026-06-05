@@ -134,19 +134,11 @@ class ReportingController extends Controller implements HasMiddleware
             'date_debut'   => 'required|date',
             'date_fin'     => 'required|date|after_or_equal:date_debut',
             'personnel_id' => 'required|integer|exists:personnels,id',
-            // 🚨 NOUVEAU : Validation des nouveaux filtres optionnels
+            'site_id'      => 'nullable|integer', // 🚨 NOUVEAU
             'produit_id'   => 'nullable|integer',
             'section_id'   => 'nullable|integer',
         ]);
-
-        $data = $action->execute(
-            $filters['personnel_id'],
-            $filters['date_debut'], 
-            $filters['date_fin'],
-            $filters['produit_id'] ?? null,  
-            $filters['section_id'] ?? null
-        );
-
+        $data = $action->execute($filters['personnel_id'], $filters['date_debut'], $filters['date_fin'], $filters['site_id'] ?? null, $filters['produit_id'] ?? null, $filters['section_id'] ?? null);
         return response()->json($data);
     }
 
@@ -156,26 +148,13 @@ class ReportingController extends Controller implements HasMiddleware
             'date_debut'   => 'required|date',
             'date_fin'     => 'required|date|after_or_equal:date_debut',
             'personnel_id' => 'required|integer|exists:personnels,id',
+            'site_id'      => 'nullable|integer', // 🚨 NOUVEAU
             'produit_id'   => 'nullable|integer',
             'section_id'   => 'nullable|integer',
         ]);
-
-        $data = $action->execute(
-            $filters['personnel_id'],
-            $filters['date_debut'], 
-            $filters['date_fin'],
-            $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null
-        );
-
-        $pdf = Pdf::loadView('pdf.etat-personnel', [
-            'data' => $data,
-        ]);
-
-
-        $fileName = 'Fiche_Agent_' . $data['personnel']['matricule'] . '_' . now()->format('Ymd') . '.pdf';
-
-        return $pdf->download($fileName);
+        $data = $action->execute($filters['personnel_id'], $filters['date_debut'], $filters['date_fin'], $filters['site_id'] ?? null, $filters['produit_id'] ?? null, $filters['section_id'] ?? null);
+        $pdf = Pdf::loadView('pdf.etat-personnel', ['data' => $data]);
+        return $pdf->download('Fiche_Agent_' . $data['personnel']['matricule'] . '_' . now()->format('Ymd') . '.pdf');
     }
 
     public function exportEtatPersonnelExcel(Request $request, GenerateEtatPersonnelAction $action)
@@ -184,51 +163,34 @@ class ReportingController extends Controller implements HasMiddleware
             'date_debut'   => 'required|date',
             'date_fin'     => 'required|date|after_or_equal:date_debut',
             'personnel_id' => 'required|integer|exists:personnels,id',
+            'site_id'      => 'nullable|integer', // 🚨 NOUVEAU
             'produit_id'   => 'nullable|integer',
             'section_id'   => 'nullable|integer',
         ]);
-
-        $data = $action->execute(
-            $filters['personnel_id'],
-            $filters['date_debut'], 
-            $filters['date_fin'],
-            $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null
-        );
-
-        $fileName = 'Fiche_Agent_' . $data['personnel']['matricule'] . '_' . now()->format('Ymd_Hi') . '.xlsx';
-
-        return Excel::download(new ExportEtatPersonnelPaie($data), $fileName);
+        $data = $action->execute($filters['personnel_id'], $filters['date_debut'], $filters['date_fin'], $filters['site_id'] ?? null, $filters['produit_id'] ?? null, $filters['section_id'] ?? null);
+        return Excel::download(new ExportEtatPersonnelPaie($data), 'Fiche_Agent_' . $data['personnel']['matricule'] . '_' . now()->format('Ymd_Hi') . '.xlsx');
     }
 
+
+    //matrice pivot
     public function getEtatPointageSection(Request $request, GenerateEtatPointageSectionAction $action)
     {
         $filters = $request->validate([
             'date_debut'    => 'required|date',
             'date_fin'      => 'required|date|after_or_equal:date_debut',
+            'site_id'       => 'nullable|integer', // 🚨 NOUVEAU
             'produit_id'    => 'nullable|integer',
             'section_id'    => 'nullable|integer',
-            'type_pointage' => 'nullable|string|in:RENDEMENT,JOURNALIER', // Le nouveau filtre
+            'type_pointage' => 'nullable|string|in:RENDEMENT,JOURNALIER',
         ]);
 
-        // 🚨 PROTECTION : Limite de 31 jours imposée
         $debut = \Carbon\Carbon::parse($filters['date_debut']);
         $fin = \Carbon\Carbon::parse($filters['date_fin']);
-        
         if ($debut->diffInDays($fin) > 31) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'date_fin' => 'La période sélectionnée ne doit pas dépasser 31 jours pour ce tableau croisé.'
-            ]);
+            throw \Illuminate\Validation\ValidationException::withMessages(['date_fin' => 'La période ne doit pas dépasser 31 jours.']);
         }
 
-        $data = $action->execute(
-            $filters['date_debut'],
-            $filters['date_fin'],
-            $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null,
-            $filters['type_pointage'] ?? null
-        );
-
+        $data = $action->execute($filters['date_debut'], $filters['date_fin'], $filters['site_id'] ?? null, $filters['produit_id'] ?? null, $filters['section_id'] ?? null, $filters['type_pointage'] ?? null);
         return response()->json($data);
     }
 
@@ -238,29 +200,18 @@ class ReportingController extends Controller implements HasMiddleware
         $filters = $request->validate([
             'date_debut'    => 'required|date',
             'date_fin'      => 'required|date|after_or_equal:date_debut',
+            'site_id'       => 'nullable|integer', // 🚨 NOUVEAU
             'produit_id'    => 'nullable|integer',
             'section_id'    => 'nullable|integer',
             'type_pointage' => 'nullable|string|in:RENDEMENT,JOURNALIER',
         ]);
 
-        // Même sécurité que l'API
         $debut = \Carbon\Carbon::parse($filters['date_debut']);
         $fin = \Carbon\Carbon::parse($filters['date_fin']);
-        if ($debut->diffInDays($fin) > 31) {
-            abort(400, "Période trop longue (Max 31 jours).");
-        }
+        if ($debut->diffInDays($fin) > 31) { abort(400, "Période trop longue (Max 31 jours)."); }
 
-        $data = $action->execute(
-            $filters['date_debut'],
-            $filters['date_fin'],
-            $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null,
-            $filters['type_pointage'] ?? null
-        );
-
-        $fileName = 'Matrice_Pivot_' . $debut->format('d_m') . '_au_' . $fin->format('d_m_Y') . '.xlsx';
-
-        return Excel::download(new ExportEtatPointagePivot($data), $fileName);
+        $data = $action->execute($filters['date_debut'], $filters['date_fin'], $filters['site_id'] ?? null, $filters['produit_id'] ?? null, $filters['section_id'] ?? null, $filters['type_pointage'] ?? null);
+        return Excel::download(new ExportEtatPointagePivot($data), 'Matrice_Pivot_' . $debut->format('d_m') . '_au_' . $fin->format('d_m_Y') . '.xlsx');
     }
 
 
@@ -269,6 +220,7 @@ class ReportingController extends Controller implements HasMiddleware
         $filters = $request->validate([
             'date_debut'    => 'required|date',
             'date_fin'      => 'required|date|after_or_equal:date_debut',
+            'site_id'       => 'nullable|integer', // 🚨 NOUVEAU
             'produit_id'    => 'nullable|integer',
             'section_id'    => 'nullable|integer',
             'type_pointage' => 'nullable|string|in:RENDEMENT,JOURNALIER', 
@@ -276,31 +228,12 @@ class ReportingController extends Controller implements HasMiddleware
 
         $debut = \Carbon\Carbon::parse($filters['date_debut']);
         $fin = \Carbon\Carbon::parse($filters['date_fin']);
+        if ($debut->diffInDays($fin) > 6) { abort(400, "L'export PDF est limité à 7 jours."); }
+        if (empty($filters['type_pointage'])) { abort(400, "Veuillez sélectionner un type de pointage pour le PDF."); }
+
+        $data = $action->execute($filters['date_debut'], $filters['date_fin'], $filters['site_id'] ?? null, $filters['produit_id'] ?? null, $filters['section_id'] ?? null, $filters['type_pointage']);
         
-        // 🚨 PROTECTION SPÉCIFIQUE PDF : Max 7 jours (Une semaine)
-        if ($debut->diffInDays($fin) > 6) { // 6 jours de différence = 7 jours inclus
-            abort(400, "L'export PDF est limité à 7 jours maximum pour garantir la lisibilité du tableau. Veuillez réduire la période ou utiliser l'export Excel.");
-        }
-
-        if (empty($filters['type_pointage'])) {
-            abort(400, "Veuillez sélectionner un type de pointage (Rendement ou Journalier) pour le PDF.");
-        }
-
-        $data = $action->execute(
-            $filters['date_debut'],
-            $filters['date_fin'],
-            $filters['produit_id'] ?? null,
-            $filters['section_id'] ?? null,
-            $filters['type_pointage']
-        );
-
-        // On charge la vue en forçant le mode Paysage (Landscape)
-        $pdf = Pdf::loadView('pdf.etat-pointage-pivot', [
-            'data' => $data,
-        ])->setPaper('a4', 'landscape');
-
-        $fileName = 'Matrice_Pivot_' . $debut->format('d_m') . '_au_' . $fin->format('d_m_Y') . '.pdf';
-
-        return $pdf->download($fileName);
+        $pdf = Pdf::loadView('pdf.etat-pointage-pivot', ['data' => $data])->setPaper('a4', 'landscape');
+        return $pdf->download('Matrice_Pivot_' . $debut->format('d_m') . '_au_' . $fin->format('d_m_Y') . '.pdf');
     }
 }

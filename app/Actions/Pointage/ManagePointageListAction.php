@@ -34,8 +34,8 @@ class ManagePointageListAction
 
     public function removeAgent(Pointage $pointage, int $ligneId): void
     {
-        if ($pointage->statut !== 'PREPARATION') {
-            throw new \Exception('La feuille n\'est plus modifiable.');
+        if (!in_array($pointage->statut, ['PREPARATION', 'EDITE_TERRAIN'])) {
+            throw new \Exception('La feuille n\'est plus modifiable à ce stade.');
         }
 
         PointageLigne::where('pointage_id', $pointage->id)->findOrFail($ligneId)->delete();

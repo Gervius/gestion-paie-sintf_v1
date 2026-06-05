@@ -265,6 +265,20 @@ class PointageController extends Controller
         return response()->json($personnels);
     }
 
+    public function viderListe(Pointage $pointage)
+    {
+        // Sécurité métier : On ne peut vider que si on est en phase de préparation
+        if ($pointage->statut !== 'PREPARATION') {
+            abort(403, "Impossible de vider la liste car la saisie terrain a déjà commencé ou est clôturée.");
+        }
+
+        DB::transaction(function () use ($pointage) {
+            $pointage->lignes()->delete();
+        });
+
+        return redirect()->back()->with('success', 'La liste des agents a été vidée avec succès.');
+    }
+
     
 
     public function destroy(Pointage $pointage)

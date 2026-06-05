@@ -7,11 +7,12 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Models\Section;
 use App\Models\Produit;
+use App\Models\Site;
 
 class GenerateEtatPointageSectionAction
 {
     
-    public function execute(string $dateDebut, string $dateFin, ?int $produitId = null, ?int $sectionId = null, ?string $typePointage = null): array
+    public function execute(string $dateDebut, string $dateFin,?int $siteId = null, ?int $produitId = null, ?int $sectionId = null, ?string $typePointage = null): array
     {
         // 1. Détermination de la période stricte
         $debutStrict = Carbon::parse($dateDebut)->startOfDay();
@@ -40,6 +41,9 @@ class GenerateEtatPointageSectionAction
             ->whereNull('pointages.deleted_at')
             ->where('pointage_lignes.statut_ligne', '!=', 'ABSENT');
 
+        if ($siteId) {
+            $query->where('pointages.site_id', $siteId);
+        }
         // Application des filtres optionnels
         if ($produitId) {
             $query->where('sections.produit_id', $produitId);
@@ -133,9 +137,11 @@ class GenerateEtatPointageSectionAction
         // 5. Récupération des infos
         $section = $sectionId ? Section::find($sectionId) : null;
         $produit = $produitId ? Produit::find($produitId) : null;
+        $site = $siteId ? Site::find($siteId) : null;
 
         return [
             'infos' => [
+                'site'          => $site ? $site->nom_site : 'Tous les sites',
                 'produit'       => $produit ? $produit->nom_produit : 'Tous les produits',
                 'section'       => $section ? $section->nom_section : 'Toutes les sections',
                 'type_pointage' => $typePointage ? $typePointage : 'Tous les types', 

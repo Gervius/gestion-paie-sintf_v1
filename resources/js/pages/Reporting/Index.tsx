@@ -60,9 +60,9 @@ export default function Index({ sites, produits, sections, personnels }: Reporti
 
             {/* APPEL DES SOUS-MODULES */}
             {reportType === 'general' && <EtatGeneralMacro sites={sites} produits={produits} />}
-            {reportType === 'personnel' && <EtatPersonnelMicro produits={produits} sections={sections} personnels={personnels} />}
-            {/* 🚨 NOUVEAU MODULE 🚨 */}
-            {reportType === 'pivot' && <EtatPointagePivot produits={produits} sections={sections} />}
+            {/* 🚨 AJOUT DE sites={sites} */}
+            {reportType === 'personnel' && <EtatPersonnelMicro sites={sites} produits={produits} sections={sections} personnels={personnels} />}
+            {reportType === 'pivot' && <EtatPointagePivot sites={sites} produits={produits} sections={sections} />}
         </div>
     );
 }

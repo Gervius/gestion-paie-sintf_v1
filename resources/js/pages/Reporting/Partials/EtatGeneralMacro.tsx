@@ -38,6 +38,13 @@ export default function EtatGeneralMacro({ sites, produits }: { sites: any[], pr
         return `/api/reporting/etat-general/${format}?${params.toString()}`;
     };
 
+    const formatNombre = (num: number) => {
+        const n = Number(num);
+        return Number.isInteger(n) 
+            ? n.toLocaleString('de-DE') 
+            : n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* PANNEAU FILTRES */}
@@ -116,7 +123,7 @@ export default function EtatGeneralMacro({ sites, produits }: { sites: any[], pr
                                         <tr key={index} className="hover:bg-slate-50">
                                             <td className="px-6 py-4 text-center text-xs font-bold text-slate-400">{index + 1}</td>
                                             <td className="px-6 py-4 font-black text-slate-700 uppercase">{ligne.section}</td>
-                                            <td className="px-6 py-4 text-right font-black text-slate-900">{ligne.montant_a_payer.toLocaleString()} CFA</td>
+                                            <td className="px-6 py-4 text-right font-black text-slate-900">{formatNombre(ligne.montant_a_payer)} CFA</td>
                                         </tr>
                                     ))
                                 )}
@@ -125,7 +132,7 @@ export default function EtatGeneralMacro({ sites, produits }: { sites: any[], pr
                                 <tfoot className="bg-slate-50 border-t-2 border-slate-300">
                                     <tr className="bg-primary/5">
                                         <td colSpan={2} className="px-6 py-6 text-right text-sm font-black uppercase text-primary">Montant Total Net</td>
-                                        <td className="px-6 py-6 text-right font-black text-2xl text-primary">{reportData.totaux.net.toLocaleString()} CFA</td>
+                                        <td className="px-6 py-6 text-right font-black text-2xl text-primary">{formatNombre(reportData.totaux.net)} CFA</td>
                                     </tr>
                                 </tfoot>
                             )}

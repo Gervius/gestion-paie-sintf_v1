@@ -33,7 +33,7 @@ class ExportEtatPersonnelPaie implements FromArray, WithStyles, WithColumnWidths
         $rows[] = [''];
 
         // Info Agent
-        $rows[] = ['Période :', 'Du ' . $this->data['periode']['debut'] . ' au ' . $this->data['periode']['fin']];
+        $rows[] = ['Période :', 'Du ' . $this->data['periode']['debut'] . ' au ' . $this->data['periode']['fin'], '', 'Site :', $this->data['infos']['site'] ?? 'Tous les sites'];
         $rows[] = ['Agent :', $this->data['personnel']['nom_complet'], '', 'Sexe :', $this->data['personnel']['sexe']];
         $rows[] = ['Matricule :', $this->data['personnel']['matricule'], '', 'Né(e) le :', $this->data['personnel']['date_naissance']];
         $rows[] = ['Téléphone :', $this->data['personnel']['telephone']];

@@ -4,7 +4,7 @@ import {
     FileText, RotateCcw, X, CheckCircle2, 
     ArrowLeft, Lock, Unlock, AlertCircle, PlusCircle,
     Users, Banknote, Wallet, FileSpreadsheet, 
-    ShieldAlert, ShieldCheck
+    ShieldAlert, ShieldCheck, Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,8 @@ import {
     apiPointagePdf, 
     apiPointageReset, 
     apiPointageSubmit,
-    apiPointageValiderPreparation
+    apiPointageValiderPreparation,
+    pointageViderListe
 } from '@/routes';
 
 // Modales
@@ -86,6 +87,11 @@ export default function Show() {
     const handleResetList = () => {
         if (!confirm('Restaurer la liste par défaut ?')) return;
         router.post(apiPointageReset.url({ pointage: pointage.id }), {}, { preserveScroll: true });
+    };
+
+    const handleViderListe = () => {
+        if (!confirm('Voulez-vous vraiment vider toute la liste des agents pour cette feuille ?')) return;
+        router.delete(pointageViderListe.url(pointage.id), { preserveScroll: true });
     };
 
     const handleOuvrirSaisie = () => {
@@ -187,8 +193,18 @@ export default function Show() {
                         </div>
                     </div>
                     <div className="flex gap-3 w-full sm:w-auto">
-                        <Button onClick={() => setIsAjoutAgentOpen(true)} className="flex-1 sm:flex-none font-black h-12 px-8 rounded-xl shadow-md"><PlusCircle size={20} className="mr-2" /> Ajouter</Button>
-                        <Button onClick={handleResetList} variant="outline" className="flex-1 sm:flex-none border-destructive/30 text-destructive h-12 px-6 rounded-xl"><RotateCcw size={18} className="mr-2" /> Reset</Button>
+                        <Button onClick={() => setIsAjoutAgentOpen(true)} className="flex-1 sm:flex-none font-black h-12 px-6 rounded-xl shadow-md">
+                            <PlusCircle size={20} className="mr-2" /> Ajouter
+                        </Button>
+                        <Button onClick={handleResetList} variant="outline" className="flex-1 sm:flex-none border-orange-300 text-orange-600 hover:bg-orange-50 h-12 px-4 rounded-xl">
+                            <RotateCcw size={18} className="mr-2" /> Reset
+                        </Button>
+                        {/* Le bouton Vider n'apparaît que s'il y a des lignes à vider */}
+                        {pointage.lignes.length > 0 && (
+                            <Button onClick={handleViderListe} variant="outline" className="flex-1 sm:flex-none border-red-200 text-red-600 hover:bg-red-600 hover:text-white h-12 px-4 rounded-xl transition-colors">
+                                <Trash2 size={18} className="mr-2" /> Vider
+                            </Button>
+                        )}
                     </div>
                 </div>
             )}
@@ -269,7 +285,7 @@ export default function Show() {
                                     </td>
                                     <td className="px-6 py-4 text-right font-black text-gray-900 text-sm whitespace-nowrap">{(getQuantityValue(ligne) * taux).toLocaleString()} F</td>
                                     <td className="px-4 py-4 text-center">
-                                        {isPreparation ? (
+                                        {(isPreparation || (isEdite && canSubmit)) ? (
                                             <button onClick={() => handleRemoveAgent(ligne.id)} className="text-muted-foreground hover:text-destructive p-2 rounded-xl"><X size={18} /></button>
                                         ) : (isCloture && isSolder && canCreateRegul) ? (
                                             <button onClick={() => { setSelectedLigneForRegul(ligne); setIsRegulNegativeOpen(true); }} title="Signaler un trop-perçu" className="text-orange-400 hover:text-red-600 p-2 rounded-xl hover:bg-red-50 transition-all"><AlertCircle size={18} /></button>

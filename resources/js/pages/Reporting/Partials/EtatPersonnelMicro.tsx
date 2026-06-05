@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Filter, Loader2, FileText, FileSpreadsheet, Package, Calendar, UserSquare, Wrench, Layers, Search } from 'lucide-react';
+import { Filter, Loader2, FileText, FileSpreadsheet, Package, Calendar, UserSquare, Wrench, Layers, Search, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-export default function EtatPersonnelMicro({ produits, sections, personnels }: { produits: any[], sections: any[], personnels: any[] }) {
+export default function EtatPersonnelMicro({ sites, produits, sections, personnels }: { sites: any[], produits: any[], sections: any[], personnels: any[] }) {
     const [filters, setFilters] = useState({
         date_debut: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         date_fin: new Date().toISOString().split('T')[0],
+        site_id: '',
         produit_id: '',
         section_id: '',
         personnel_id: '',
@@ -52,9 +53,17 @@ export default function EtatPersonnelMicro({ produits, sections, personnels }: {
         if (filters.date_debut) params.append('date_debut', filters.date_debut);
         if (filters.date_fin) params.append('date_fin', filters.date_fin);
         if (filters.personnel_id) params.append('personnel_id', filters.personnel_id);
+        if (filters.site_id) params.append('site_id', filters.site_id);
         if (filters.produit_id) params.append('produit_id', filters.produit_id);
         if (filters.section_id) params.append('section_id', filters.section_id);
         return `/api/reporting/etat-personnel/${format}?${params.toString()}`;
+    };
+
+    const formatNombre = (num: number) => {
+        const n = Number(num);
+        return Number.isInteger(n) 
+            ? n.toLocaleString('de-DE') 
+            : n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
     return (
@@ -70,6 +79,14 @@ export default function EtatPersonnelMicro({ produits, sections, personnels }: {
                         <label className="text-xs font-black uppercase text-slate-500 flex items-center gap-2"><Calendar size={14}/> Période</label>
                         <input type="date" value={filters.date_debut} onChange={(e) => setFilters({...filters, date_debut: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary" />
                         <input type="date" value={filters.date_fin} onChange={(e) => setFilters({...filters, date_fin: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary" />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-500 flex items-center gap-2"><Building2 size={14}/> Site</label>
+                        <select value={filters.site_id} onChange={(e) => setFilters({...filters, site_id: e.target.value})} className="w-full text-sm font-bold border-2 border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary">
+                            <option value="">Tous les sites</option>
+                            {sites.map(site => <option key={site.id} value={site.id}>{site.nom_site}</option>)}
+                        </select>
                     </div>
 
                     <div className="space-y-2 relative" ref={wrapperRef}>
@@ -178,13 +195,13 @@ export default function EtatPersonnelMicro({ produits, sections, personnels }: {
                                             <tr key={index} className="hover:bg-slate-50">
                                                 <td className="px-4 py-3 font-bold text-xs text-slate-600 uppercase">{ligne.produit}</td>
                                                 <td className="px-4 py-3 font-black text-xs text-slate-800 uppercase">{ligne.section}</td>
-                                                <td className="px-4 py-3 text-center text-xs font-mono">{ligne.taux}</td>
+                                                <td className="px-4 py-3 text-center text-xs font-mono">{formatNombre(ligne.taux)}</td>
                                                 <td className="px-4 py-3 text-center font-black text-orange-600 bg-orange-50/30 border-x border-orange-50">
                                                     {ligne.quantite_totale} <span className="text-[9px] text-orange-400">{ligne.unite}</span>
                                                 </td>
                                                 <td className="px-4 py-3 text-center font-bold text-slate-600">{ligne.nb_jours}</td>
-                                                <td className="px-4 py-3 text-center font-bold text-emerald-600">{ligne.rendement_moyen}</td>
-                                                <td className="px-6 py-3 text-right font-black text-slate-900">{ligne.montant_a_payer.toLocaleString()} CFA</td>
+                                                <td className="px-4 py-3 text-center font-bold text-emerald-600">{formatNombre(ligne.rendement_moyen)}</td>
+                                                <td className="px-6 py-3 text-right font-black text-slate-900">{formatNombre(ligne.montant_a_payer)} CFA</td>
                                             </tr>
                                         ))
                                     )}
@@ -196,7 +213,7 @@ export default function EtatPersonnelMicro({ produits, sections, personnels }: {
                                             Montant Total :
                                         </td>
                                         <td className="text-right font-bold py-2">
-                                            {reportData.finances?.montant_total?.toLocaleString()}
+                                            {formatNombre(reportData.finances?.montant_total)}
                                         </td>
                                     </tr>
                                     <tr>
@@ -204,7 +221,7 @@ export default function EtatPersonnelMicro({ produits, sections, personnels }: {
                                             Avance Déduite :
                                         </td>
                                         <td className="text-right font-bold py-2 text-red-600">
-                                            - {reportData.finances?.avance_deduite?.toLocaleString()}
+                                            - {formatNombre(reportData.finances?.avance_deduite)}
                                         </td>
                                     </tr>
                                     <tr className="bg-gray-100">
@@ -212,7 +229,7 @@ export default function EtatPersonnelMicro({ produits, sections, personnels }: {
                                             Net à Payer :
                                         </td>
                                         <td className="text-right font-black py-3 text-emerald-700">
-                                            {reportData.finances?.net_a_payer?.toLocaleString()} CFA
+                                            {formatNombre(reportData.finances?.net_a_payer)} CFA
                                         </td>
                                     </tr>
                                 </tfoot>
