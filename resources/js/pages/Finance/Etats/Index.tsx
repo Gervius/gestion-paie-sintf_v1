@@ -11,7 +11,7 @@ import Pagination from '@/components/Pagination';
 import { financeEtatsShow, financeEtatsCampagne } from '@/routes';
 
 export default function Index() {
-    const { etats, sections, date_debut_suggeree, filters, auth } = usePage<any>().props;
+    const { etats, sections, sites, date_debut_suggeree, filters, auth } = usePage<any>().props;
     
     const userPerms = auth?.user?.permissions || [];
     const isSuperAdmin = userPerms.includes('*') || auth?.user?.roles?.includes('Super Admin');
@@ -20,6 +20,7 @@ export default function Index() {
     const [showForm, setShowForm] = useState(false);
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [statusFilter, setStatusFilter] = useState(filters?.status || 'PROVISOIRE');
+    const [siteFilter, setSiteFilter] = useState(filters?.site_id || ''); // Nouveau state
     const isInitialRender = useRef(true);
 
     const { data, setData, post, processing } = useForm({
@@ -31,9 +32,10 @@ export default function Index() {
     const applyFilters = useCallback(() => {
         router.get(window.location.pathname, { 
             search: searchTerm, 
-            status: statusFilter 
+            status: statusFilter,
+            site_id: siteFilter // Ajout dans la requête
         }, { preserveState: true, replace: true, preserveScroll: true });
-    }, [searchTerm, statusFilter]);
+    }, [searchTerm, statusFilter, siteFilter]); // Dépendance ajoutée
 
     useEffect(() => {
         if (isInitialRender.current) {
@@ -41,7 +43,7 @@ export default function Index() {
             return;
         }
         applyFilters();
-    }, [statusFilter]);
+    }, [statusFilter, siteFilter]);
 
     const toggleSection = useCallback((id: number) => {
         setData(prevData => {
@@ -145,16 +147,29 @@ export default function Index() {
                     </button>
                 </div>
 
-                <div className="relative w-full lg:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                    <input 
-                        type="text" 
-                        placeholder="Chercher une référence ou section..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                        className="w-full pl-9 pr-3 py-2 text-sm font-bold bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-secondary transition-all"
-                    />
+                <div className="flex w-full lg:w-auto gap-2">
+                    <select 
+                        value={siteFilter}
+                        onChange={(e) => setSiteFilter(e.target.value)}
+                        className="px-3 py-2 text-sm font-bold bg-gray-50 border border-border rounded-lg outline-none focus:ring-2 focus:ring-secondary transition-all"
+                    >
+                        <option value="">Tous les sites</option>
+                        {sites.map((site: any) => (
+                            <option key={site.id} value={site.id}>{site.nom_site}</option>
+                        ))}
+                    </select>
+
+                    <div className="relative w-full lg:w-72">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                        <input 
+                            type="text" 
+                            placeholder="Rechercher..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                            className="w-full pl-9 pr-3 py-2 text-sm font-bold bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-secondary transition-all"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -164,7 +179,6 @@ export default function Index() {
                     <thead className="bg-muted/50 border-b border-border">
                         <tr>
                             <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px]">Référence & Période</th>
-                            <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-center">Type</th>
                             <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-right">Masse Salariale</th>
                             <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-center">Statut</th>
                             <th className="px-6 py-4"></th>
@@ -184,22 +198,27 @@ export default function Index() {
                             etats.data.map((etat:any) => (
                                 <tr key={etat.id} className="hover:bg-accent/5 transition-colors">
                                     <td className="px-6 py-4">
-                                        <div className="font-black text-sm text-gray-900">{etat.reference_etat}</div>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            {/* INTENTION : La Section est le focus visuel principal */}
+                                            <span className="font-black text-lg text-gray-900 uppercase">
                                                 {etat.section?.nom_section}
                                             </span>
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                            <Badge variant="outline" className="text-[10px] uppercase border-gray-300 text-gray-700 bg-gray-50">
+                                                {etat.site?.nom_site}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            {/* La référence devient secondaire */}
+                                            <span className="text-[10px] font-mono text-muted-foreground uppercase bg-gray-100 px-1.5 py-0.5 rounded">
+                                                {etat.reference_etat}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
                                                 <CalendarRange size={12} />
                                                 Du {new Date(etat.date_debut).toLocaleDateString()} au {new Date(etat.date_fin).toLocaleDateString()}
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <Badge variant="outline" className="text-[9px] uppercase border-gray-200 text-gray-600 bg-white">
-                                            {etat.type_pointage}
-                                        </Badge>
-                                    </td>
+                                    {/* On supprime la colonne "Type" qui est devenue MIXTE, on garde directement le reste */}
                                     <td className="px-6 py-4 text-right">
                                         <div className="text-gray-900 font-black text-base">{Number(etat.montant_total_net).toLocaleString()} F</div>
                                     </td>

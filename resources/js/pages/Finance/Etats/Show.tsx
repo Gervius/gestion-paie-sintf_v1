@@ -2,7 +2,7 @@ import { usePage, router, Link, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import { 
     ArrowLeft, CheckCircle2, Wallet, Banknote, Edit3, Save, X, 
-    FileSpreadsheet, Printer, Users, TrendingDown, Search, Send
+    FileSpreadsheet, Printer, Users, TrendingDown, Search, Send, RefreshCcw 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -82,11 +82,17 @@ export default function Show() {
                         <ArrowLeft size={16} /> Retour aux campagnes
                     </Link>
                     <div className="flex items-center gap-3">
-                        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight">{etat.reference_etat}</h1>
-                        <Badge className={`px-4 py-1.5 rounded-full text-xs font-black uppercase border-0 shadow-sm ${isValide ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight">
+                            {etat.section?.nom_section}
+                        </h1>
+                        <Badge variant="outline" className="px-3 py-1 text-sm font-black bg-white uppercase text-gray-700 border-gray-300 shadow-sm">
+                            {etat.site?.nom_site}
+                        </Badge>
+                        <Badge className={`px-3 py-1 rounded-full text-xs font-black uppercase border-0 shadow-sm ${isValide ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                             {etat.statut}
                         </Badge>
                     </div>
+                    <div className="text-xs font-mono text-muted-foreground mt-1 uppercase">Réf: {etat.reference_etat}</div>
                 </div>
 
                 {isProvisoire && (
@@ -212,12 +218,12 @@ export default function Show() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm min-w-[800px] text-left">
+                    <table className="w-full text-sm min-w-[900px] text-left">
                         <thead className="bg-muted/50 border-b border-border">
                             <tr>
                                 <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px]">Agent & Mode</th>
-                                <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-center">Volume</th>
-                                <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-right">Salaire Brut</th>
+                                <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-right">Détail des gains</th>
+                                <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-right">Total Brut</th>
                                 <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-right">Retenue Avance</th>
                                 <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-right">Net à Payer</th>
                                 <th className="px-6 py-4 font-black text-primary uppercase tracking-wider text-[10px] text-center">Statut</th>
@@ -226,6 +232,11 @@ export default function Show() {
                         <tbody className="divide-y divide-border">
                             {filteredTickets.map((ticket: any) => {
                                 const detteTotaleAgent = Number(ticket.personnel?.total_avances_actives || 0);
+
+                                // INTENTION : Ventilation dynamique en mémoire. 
+                                // On filtre les lignes de ce ticket pour séparer le journalier du rendement.
+                                const brutJournalier = ticket.pointage_lignes?.filter((l:any) => l.pointage?.type_pointage === 'JOURNALIER').reduce((sum:number, l:any) => sum + Number(l.montant_brut), 0) || 0;
+                                const brutRendement = ticket.pointage_lignes?.filter((l:any) => l.pointage?.type_pointage === 'RENDEMENT').reduce((sum:number, l:any) => sum + Number(l.montant_brut), 0) || 0;
 
                                 return (
                                     <tr key={ticket.id} className="hover:bg-accent/5 transition-colors">
@@ -245,11 +256,24 @@ export default function Show() {
                                             </div>
                                         </td>
 
-                                        <td className="px-6 py-4 text-center font-bold text-gray-600">
-                                            {Number(ticket.quantite_totale).toFixed(2)}
+                                        {/* LA COLONNE DE VENTILATION (Épurée) */}
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex flex-col items-end gap-1 text-[10px] font-black uppercase">
+                                                {brutJournalier > 0 && (
+                                                    <span className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 shadow-sm">
+                                                        Jour. : {brutJournalier.toLocaleString()} F
+                                                    </span>
+                                                )}
+                                                {brutRendement > 0 && (
+                                                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 shadow-sm">
+                                                        Rend. : {brutRendement.toLocaleString()} F
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
 
-                                        <td className="px-6 py-4 text-right font-bold text-gray-500">
+                                        {/* TOTAL BRUT UNIFIÉ */}
+                                        <td className="px-6 py-4 text-right font-black text-gray-900 text-sm">
                                             {Number(ticket.montant_brut_cumule).toLocaleString()} F
                                         </td>
                                         
@@ -283,7 +307,7 @@ export default function Show() {
                                                             )}
                                                         </div>
                                                         {detteTotaleAgent > 0 && (
-                                                            <span className="text-[9px] font-black bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 uppercase">
+                                                            <span className="text-[9px] font-black bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 uppercase shadow-sm">
                                                                 Dette : {detteTotaleAgent.toLocaleString()} F
                                                             </span>
                                                         )}
@@ -297,7 +321,7 @@ export default function Show() {
                                         </td>
 
                                         <td className="px-6 py-4 text-center">
-                                            <Badge className={`border-0 ${ticket.statut === 'SOLDE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                            <Badge className={`border-0 shadow-sm ${ticket.statut === 'SOLDE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                                                 {ticket.statut}
                                             </Badge>
                                         </td>

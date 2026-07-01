@@ -287,12 +287,12 @@ class PointageController extends Controller
 
         $isSuperAdmin = auth()->user()->can('*') || auth()->user()->hasRole('Super Admin');
 
-        // 1. BLOCAGE STANDARD : Un utilisateur normal ne supprime qu'en préparation
+        // 1. BLOCAGE STANDARD
         if (!$isSuperAdmin && $pointage->statut !== 'PREPARATION') {
             return back()->withErrors(['error' => 'Seul un Super Admin peut supprimer un pointage déjà édité ou clôturé.']);
         }
 
-        // 2. VÉRIFICATION DE LA CAISSE (Même le Super Admin ne peut pas frauder)
+        // 2. VÉRIFICATION DE LA CAISSE
         $hasSoldes = $pointage->lignes()->whereHas('ticketPaiement', function ($query) {
             $query->where('statut', 'SOLDE');
         })->exists();
@@ -301,18 +301,15 @@ class PointageController extends Controller
             return back()->withErrors(['error' => 'Suppression impossible : Ce pointage a généré des paiements qui ont DÉJÀ été remis aux employés en caisse.']);
         }
 
-        // 3. LA SUPPRESSION CHIRURGICALE AVEC RECALCUL
+        // 3. LA SUPPRESSION CHIRURGICALE AVEC AUTO-AJUSTEMENT
         DB::transaction(function () use ($pointage) {
-            // A. On identifie les tickets de paie qui vont être impactés par cette suppression
-            $ticketIds = $pointage->lignes() // (Ici c'est bon si Pointage a bien une relation lignes())
+            $ticketIds = $pointage->lignes()
                 ->whereNotNull('ticket_paiement_id')
                 ->pluck('ticket_paiement_id')
                 ->unique();
 
-            // B. On supprime les lignes du pointage (la suppression en cascade fera le reste)
             $pointage->lignes()->delete();
 
-            // C. On recalcule les tickets de paie pour éviter que le comptable n'ait des faux totaux
             if ($ticketIds->isNotEmpty()) {
                 $tickets = \App\Models\TicketPaiement::whereIn('id', $ticketIds)->get();
                 
@@ -320,26 +317,31 @@ class PointageController extends Controller
                     $nouvelleQuantite = $ticket->pointageLignes()->sum('quantite');
                     
                     if ($nouvelleQuantite == 0) {
-                        // S'il n'y a plus aucune ligne pour cet agent, on supprime son ticket
+                        // S'il n'y a plus aucune ligne, on détruit la projection de paie.
+                        // La dette intacte de l'employé l'attendra à sa prochaine paie.
                         $ticket->delete();
                     } else {
-                        // Sinon, on recalcule son salaire brut et net
                         $nouveauBrut = $ticket->pointageLignes()->sum('montant_brut');
+                        $retenuePrevue = $ticket->montant_deduit_manuel;
+
+                        // INTENTION : Le bouclier anti Net Négatif.
+                        // On plafonne la retenue prévue au maximum du nouveau salaire brut.
+                        $nouvelleRetenue = min($retenuePrevue, $nouveauBrut);
                         
                         $ticket->update([
                             'quantite_totale' => $nouvelleQuantite,
                             'montant_brut_cumule' => $nouveauBrut,
-                            'montant_net' => $nouveauBrut - $ticket->montant_deduit_manuel
+                            'montant_deduit_manuel' => $nouvelleRetenue,
+                            'montant_net' => $nouveauBrut - $nouvelleRetenue
                         ]);
                     }
                 }
             }
 
-            // D. Enfin, on détruit la coquille vide du pointage
             $pointage->delete();
         });
 
-        return back()->with('success', 'Pointage détruit avec succès et fiches de paie recalculées.');
+        return back()->with('success', 'Pointage détruit avec succès et fiches de paie recalculées automatiquement.');
     }
 
     

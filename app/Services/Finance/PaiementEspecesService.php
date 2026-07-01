@@ -22,33 +22,31 @@ class PaiementEspecesService
             $ticket->update(['statut' => 'SOLDE']);
             $ticket->pointageLignes()->update(['statut_ligne' => 'PAYE']);
 
-            // 2. LOGIQUE MANUELLE : On récupère le montant décidé par le caissier
+            // 2. LOGIQUE DE RETENUE : Déduction sur les avances
             $retenueAAppliquer = $ticket->montant_deduit_manuel;
 
             if ($retenueAAppliquer > 0) {
-                // On récupère les avances actives de l'employé
+                // INTENTION : lockForUpdate() indispensable pour prévenir les accès concurrents
+                // (ex: double clic ou paiement multi-sections simultané) qui créeraient des soldes d'avances négatifs.
                 $avances = Avance::where('personnel_id', $ticket->personnel_id)
                     ->where('statut', 'ACTIVE')
                     ->where('solde_restant', '>', 0)
                     ->orderBy('date_avance')
+                    ->lockForUpdate() 
                     ->get();
 
                 foreach ($avances as $avance) {
                     if ($retenueAAppliquer <= 0) break;
 
-                    // On déduit soit la totalité de la retenue, soit ce qu'il reste sur cette avance
-                    // 1. Calcul du nouveau solde
                     $deduction = min($avance->solde_restant, $retenueAAppliquer);
                     $nouveauSolde = $avance->solde_restant - $deduction;
 
-                    // 2. Mise à jour via update() pour déclencher les centimes
                     $avance->update([
                         'solde_restant' => $nouveauSolde,
                         'solde_restant_centimes' => (int) round($nouveauSolde * 100),
                         'statut' => $nouveauSolde <= 0 ? 'SOLDEE' : 'ACTIVE'
                     ]);
 
-                    // 3. On réduit le reste à appliquer
                     $retenueAAppliquer -= $deduction;
                 }
             }
@@ -91,14 +89,24 @@ class PaiementEspecesService
     public function traiterPaiementMassif(array $ticketIds, int $userId): int
     {
         return DB::transaction(function () use ($ticketIds, $userId) {
-            // On s'assure de ne payer que les tickets en espèces qui ne sont pas encore soldés
-            return TicketPaiement::whereIn('id', $ticketIds)
+            // INTENTION : On abandonne le mass update() SQL qui bypassait la logique métier.
+            // On verrouille les tickets et on réutilise payer() pour que chaque retenue 
+            // manuelle soit impérativement déduite des avances de l'employé.
+            $tickets = TicketPaiement::whereIn('id', $ticketIds)
                 ->where('mode_paiement', 'ESPECES')
                 ->where('statut', 'NON_SOLDE')
-                ->update([
-                    'statut' => 'SOLDE',
-                    'date_paiement' => now(), // Tu peux ajouter 'paye_par_id' => $userId si tu as la colonne
-                ]);
+                ->lockForUpdate()
+                ->get();
+
+            $count = 0;
+            foreach ($tickets as $ticket) {
+                $this->payer($ticket);
+                // Mise à jour silencieuse de la date (sans déclencher les observers)
+                $ticket->updateQuietly(['date_paiement' => now()]); 
+                $count++;
+            }
+            
+            return $count;
         });
     }
 }

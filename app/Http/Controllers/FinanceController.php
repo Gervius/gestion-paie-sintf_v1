@@ -25,19 +25,22 @@ class FinanceController extends Controller
     /**
      * Index des États de Paiement
      */
+    /**
+     * Index des États de Paiement
+     */
     public function etatsIndex(Request $request)
     {
         $this->authorize('viewAny', EtatPaiement::class);
 
         $status = $request->input('status', 'PROVISOIRE');
         $search = $request->input('search');
+        $siteId = $request->input('site_id'); // INTENTION : Nouveau filtre par site
 
-        $query = EtatPaiement::with('section')
-            
+        // INTENTION : Eager loading du 'site' pour l'affichage UI
+        $query = EtatPaiement::with(['section', 'site']) 
             ->withCount(['tickets as tickets_non_soldes_count' => function ($q) {
                 $q->where('statut', 'NON_SOLDE');
             }])
-            // Filtres intelligents basés sur les enfants (tickets)
             ->when($status === 'PROVISOIRE', fn($q) => $q->where('statut', 'PROVISOIRE'))
             ->when($status === 'A_PAYER', function($q) {
                 $q->where('statut', 'VALIDE')
@@ -47,20 +50,25 @@ class FinanceController extends Controller
                 $q->where('statut', 'VALIDE')
                   ->whereDoesntHave('tickets', fn($sq) => $sq->where('statut', 'NON_SOLDE'));
             })
+            ->when($siteId, fn($q) => $q->where('site_id', $siteId))
             ->when($search, function ($q) use ($search) {
-                $q->where('reference_etat', 'ilike', "%{$search}%")
-                  ->orWhereHas('section', fn($sq) => $sq->where('nom_section', 'ilike', "%{$search}%"));
+                // CORRECTION CRITIQUE : Encapsulation du OR pour ne pas casser les filtres de Site et Statut
+                $q->where(function ($queryGroup) use ($search) {
+                    $queryGroup->where('reference_etat', 'ilike', "%{$search}%")
+                               ->orWhereHas('section', fn($sq) => $sq->where('nom_section', 'ilike', "%{$search}%"));
+                });
             })
             ->orderBy('created_at', 'desc');
 
+            
         return Inertia::render('Finance/Etats/Index', [
             'etats' => $query->paginate(15)->withQueryString(),
             'sections' => Section::orderBy('nom_section')->get(['id', 'nom_section']),
+            'sites' => \App\Models\Site::orderBy('nom_site')->get(['id', 'nom_site']), // Transmission des sites à React
             'date_debut_suggeree' => now()->startOfMonth()->toDateString(),
-            'filters' => $request->only(['status', 'search'])
+            'filters' => $request->only(['status', 'search', 'site_id'])
         ]);
     }
-
     /**
      * Génération de la Campagne de Masse (Multi-Sections)
      */
@@ -96,21 +104,28 @@ class FinanceController extends Controller
     /**
      * Détail d'un État
      */
+    /**
+     * Détail d'un État avec chargement des relations pour la ventilation UI
+     */
     public function etatShow(EtatPaiement $etat)
     {
-        // L'EtatPaiement est déjà protégé par le SiteScope s'il est activé
-        // On vérifie si l'utilisateur peut voir les tickets (Caissier, RH, Admin)
         $this->authorize('view', $etat);
 
-        $etat->load(['section', 'tickets.personnel' => function($q) {
-            $q->withSum(['avances as total_avances_actives' => function($sq) {
-                $sq->where('statut', 'ACTIVE');
-            }], 'solde_restant');
-        }]);
+        // INTENTION : Eager loading des lignes de pointage et de leur pointage parent 
+        // pour permettre au composant React de séparer instantanément les montants journaliers et rendements en mémoire.
+        $etat->load([
+            'section', 
+            'site', // Permet d'afficher le nom du site dans le header du Show
+            'tickets.personnel' => function($q) {
+                $q->withSum(['avances as total_avances_actives' => function($sq) {
+                    $sq->where('statut', 'ACTIVE');
+                }], 'solde_restant');
+            },
+            'tickets.pointageLignes.pointage' // <-- AJOUT CRITIQUE POUR LA VENTILATION DE L'UI
+        ]);
         
         return Inertia::render('Finance/Etats/Show', [
             'etat' => $etat,
-            
         ]);
     }
 
@@ -148,9 +163,7 @@ class FinanceController extends Controller
         return redirect()->route('financeEtatsIndex')->with('success', "L'état a été annulé.");
     }
 
-    /**
-     * Mise à jour de la retenue sur ticket
-     */
+    
     /**
      * Mise à jour de la retenue sur ticket
      */
@@ -159,43 +172,49 @@ class FinanceController extends Controller
         // Seul le caissier ou celui qui gère les avances peut modifier une retenue
         $this->authorize('modifierRetenue', $ticket);
 
-        // 1. CALCUL DE LA DETTE RÉELLE AU NIVEAU DU SERVEUR
-        $detteTotale = \App\Models\Avance::where('personnel_id', $ticket->personnel_id)
-            ->where('statut', 'ACTIVE')
-            ->sum('solde_restant');
+        return DB::transaction(function () use ($request, $ticket) {
+            // INTENTION : Verrouillage exclusif en lecture pour garantir l'intégrité de la donnée.
+            // On s'assure d'avoir la version la plus fraîche du ticket en base.
+            $lockedTicket = TicketPaiement::lockForUpdate()->findOrFail($ticket->id);
 
-        // 2. SÉCURITÉ ABSOLUE : On ne peut pas retenir plus que la dette, 
-        // ET on ne peut pas retenir plus que le salaire brut (pour éviter un salaire net négatif !)
-        $plafondMaximum = min($detteTotale, $ticket->montant_brut_cumule);
+            // 1. CALCUL DE LA DETTE RÉELLE SÉCURISÉ
+            $detteTotale = \App\Models\Avance::where('personnel_id', $lockedTicket->personnel_id)
+                ->where('statut', 'ACTIVE')
+                ->lockForUpdate() // <-- Pose le verrou sur les lignes récupérées
+                ->get()           // <-- Exécute le SELECT FOR UPDATE
+                ->sum('solde_restant'); // <-- Fait la somme sur la Collection en mémoire
 
-        // 3. VALIDATION STRICTE
-        $validated = $request->validate([
-            'montant_retenue' => [
-                'required',
-                'numeric',
-                'min:0',
-                'max:' . $plafondMaximum // Le fameux bouclier
-            ]
-        ], [
-            // Message d'erreur personnalisé si le caissier force la saisie
-            'montant_retenue.max' => "Impossible. La retenue maximale autorisée est de " . number_format($plafondMaximum, 0, ',', ' ') . " FCFA (Dette restante ou Salaire Brut)."
-        ]);
+            // 2. SÉCURITÉ ABSOLUE : Plafond = dette restante OU salaire brut
+            $plafondMaximum = min($detteTotale, $lockedTicket->montant_brut_cumule);
 
-        if ($ticket->statut === 'SOLDE') {
-            return back()->withErrors(['error' => 'Impossible de modifier un ticket déjà soldé.']);
-        }
-        
-        if ($ticket->etatPaiement->statut === 'VALIDE' && !auth()->user()->can('*')) {
-            return back()->withErrors(['error' => "L'état est verrouillé, modification interdite."]);
-        }
+            // 3. VALIDATION STRICTE
+            $validated = $request->validate([
+                'montant_retenue' => [
+                    'required',
+                    'numeric',
+                    'min:0',
+                    'max:' . $plafondMaximum 
+                ]
+            ], [
+                'montant_retenue.max' => "Impossible. La retenue maximale autorisée est de " . number_format($plafondMaximum, 0, ',', ' ') . " FCFA (Dette restante ou Salaire Brut)."
+            ]);
 
-        // 4. MISE À JOUR
-        $ticket->update([
-            'montant_deduit_manuel' => $validated['montant_retenue'],
-            'montant_net' => $ticket->montant_brut_cumule - $validated['montant_retenue']
-        ]);
+            if ($lockedTicket->statut === 'SOLDE') {
+                return back()->withErrors(['error' => 'Impossible de modifier un ticket déjà soldé.']);
+            }
+            
+            if ($lockedTicket->etatPaiement->statut === 'VALIDE' && !auth()->user()->can('*')) {
+                return back()->withErrors(['error' => "L'état est verrouillé, modification interdite."]);
+            }
 
-        return back()->with('success', "Retenue appliquée avec succès.");
+            // 4. MISE À JOUR
+            $lockedTicket->update([
+                'montant_deduit_manuel' => $validated['montant_retenue'],
+                'montant_net' => $lockedTicket->montant_brut_cumule - $validated['montant_retenue']
+            ]);
+
+            return back()->with('success', "Retenue appliquée avec succès.");
+        });
     }
 
     /**
